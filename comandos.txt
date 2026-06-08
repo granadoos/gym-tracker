@@ -1,0 +1,13 @@
+#Parar contenedores
+docker compose down
+
+
+#Traer los cambios de Github
+docker run --rm \ 
+  -v /share/Container/gym-tracker:/repo \
+  -w /repo \
+  alpine/git pull
+
+
+#Arrancar contenerdores
+docker compose up -d --build
