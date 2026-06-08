@@ -1,0 +1,22 @@
+from typing import Optional
+from pydantic import BaseModel
+
+class PlanCreate(BaseModel):
+    name: str
+
+
+class PlanDayCreate(BaseModel):
+    day_of_week: int
+
+
+class PlanDayPlanUpdate(BaseModel):
+    plan_id: Optional[int] = None
+
+
+class PlanExerciseCreate(BaseModel):
+    exercise_id: int
+    order_index: int
+    default_sets: int
+
+    default_reps: Optional[int] = None
+    default_time_seconds: Optional[int] = None
