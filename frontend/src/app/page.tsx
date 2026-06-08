@@ -99,7 +99,7 @@ export default function Home() {
       <header className="mobile-header">
         <div>
           <p className="eyebrow">Gym Tracker</p>
-          <h1>Entrenar....</h1>
+          <h1>Entrenar. Hoy puedes!. </h1>
         </div>
         <Link className="header-link" href="/configuration">
           Configuracion
