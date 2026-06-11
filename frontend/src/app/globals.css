@@ -555,7 +555,7 @@ select:focus {
 
 .builder-form {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 90px 110px 120px auto;
+  grid-template-columns: minmax(180px, 1fr) 90px 110px 110px 120px auto;
   gap: 8px;
   margin-bottom: 14px;
 }
@@ -568,7 +568,7 @@ select:focus {
 
 .table-row {
   display: grid;
-  grid-template-columns: 70px minmax(160px, 1fr) 90px 120px 36px;
+  grid-template-columns: 70px minmax(140px, 1fr) 80px 110px 90px 36px;
   gap: 12px;
   align-items: center;
   min-height: 44px;
@@ -740,14 +740,29 @@ select:focus {
   margin-bottom: 12px;
 }
 
-.workout-step-progress span {
+.workout-step-progress > span {
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.workout-step-progress div {
+.workout-progress-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.workout-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 180ms ease;
+}
+
+.workout-step-dots {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(18px, 1fr));
   gap: 6px;
@@ -763,6 +778,10 @@ select:focus {
 
 .workout-step-progress button.active {
   background: var(--accent);
+}
+
+.workout-step-progress button.done {
+  background: #3d9b73;
 }
 
 .workout-step-progress button:disabled {
@@ -981,6 +1000,158 @@ select:focus {
   accent-color: var(--accent);
 }
 
+.active-set-card {
+  display: grid;
+  gap: 16px;
+}
+
+.active-set-body {
+  display: grid;
+  gap: 18px;
+  padding: 16px;
+}
+
+.active-set-body.timer-prep {
+  background: #fff8e6;
+}
+
+.active-set-body.timer-work {
+  background: #fff1f0;
+}
+
+.active-set-body.timer-done {
+  background: #edf8f1;
+}
+
+.active-set-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.active-set-progress span {
+  min-width: 0;
+}
+
+.series-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.series-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #d1d5db;
+}
+
+.series-dot.done {
+  background: var(--accent);
+}
+
+.series-dot.active {
+  outline: 3px solid rgba(31, 122, 90, 0.18);
+}
+
+.active-set-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.active-field {
+  display: grid;
+  gap: 6px;
+}
+
+.active-field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.active-field input {
+  width: 100%;
+  min-height: 56px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.big-timer-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.big-timer-display {
+  min-height: 64px;
+  color: var(--foreground);
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.timer-work .big-timer-display {
+  color: var(--danger);
+}
+
+.timer-done .big-timer-display {
+  color: var(--accent-strong);
+  font-size: 30px;
+}
+
+.big-timer-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.big-timer-actions button {
+  min-width: 0;
+  min-height: 58px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  padding: 0;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.big-timer-actions button:nth-child(2) {
+  background: #5f6b7a;
+}
+
+.big-timer-actions button:nth-child(3) {
+  background: var(--danger);
+}
+
+.complete-set-button {
+  width: 100%;
+  min-height: 64px;
+  font-size: 20px;
+}
+
+.exercise-completed-card {
+  text-align: center;
+  padding: 24px;
+}
+
+.remaining-sets {
+  text-align: center;
+  opacity: 0.7;
+}
+
 @media (max-width: 1120px) {
   .workspace-grid {
     grid-template-columns: 260px minmax(0, 1fr);
@@ -1013,7 +1184,7 @@ select:focus {
   }
 
   .table-row {
-    grid-template-columns: 52px minmax(100px, 1fr) 64px 88px 36px;
+    grid-template-columns: 42px minmax(86px, 1fr) 54px 76px 64px 36px;
     gap: 8px;
     padding: 0 10px;
   }
@@ -1043,4 +1214,5 @@ select:focus {
   .history-set-row {
     grid-template-columns: 42px minmax(48px, 1fr) minmax(62px, 1fr) minmax(70px, 1fr) 40px;
   }
+
 }

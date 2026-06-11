@@ -44,6 +44,7 @@ export type PlanExercise = {
   order_index: number;
   default_sets: number;
   default_reps: number | null;
+  default_weight: number | null;
   default_time_seconds: number | null;
 };
 
@@ -95,6 +96,7 @@ export type CreatePlanExerciseInput = {
   order_index: number;
   default_sets: number;
   default_reps: number | null;
+  default_weight: number | null;
   default_time_seconds: number | null;
 };
 

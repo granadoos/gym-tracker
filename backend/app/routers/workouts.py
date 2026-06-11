@@ -138,18 +138,30 @@ def start_workout(
                 workout_exercise_id=workout_exercise.id,
                 reps=(
                     latest_set.reps
-                    if latest_set and latest_set.reps is not None
+                    if (
+                        plan_exercise.default_reps is not None
+                        and latest_set
+                        and latest_set.reps is not None
+                    )
                     else plan_exercise.default_reps
                 ),
                 duration_seconds=(
                     latest_set.duration_seconds
-                    if latest_set and latest_set.duration_seconds is not None
+                    if (
+                        plan_exercise.default_time_seconds is not None
+                        and latest_set
+                        and latest_set.duration_seconds is not None
+                    )
                     else plan_exercise.default_time_seconds
                 ),
                 weight=(
                     latest_set.weight
-                    if latest_set
-                    else None
+                    if (
+                        plan_exercise.default_weight is not None
+                        and latest_set
+                        and latest_set.weight is not None
+                    )
+                    else plan_exercise.default_weight
                 ),
                 completed=False
             )
@@ -263,6 +275,9 @@ def get_workout_full(
         )
 
     workout.exercises.sort(key=lambda workout_exercise: workout_exercise.order_index or 0)
+
+    for workout_exercise in workout.exercises:
+        workout_exercise.sets.sort(key=lambda set_item: set_item.id)
 
     return {
         "id": workout.id,

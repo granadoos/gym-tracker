@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Float, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database.database import Base
 
@@ -41,6 +41,8 @@ class PlanExercise(Base):
     default_sets = Column(Integer, default=3)
     
     default_reps = Column(Integer, default=10)
+
+    default_weight = Column(Float, nullable=True)
     
     default_time_seconds = Column(Integer, nullable=True)
 

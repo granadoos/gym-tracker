@@ -2,14 +2,26 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { WorkoutFull, WorkoutSet, api } from "@/lib/api";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DurationInput from "@/components/DurationInput";
+import {
+  WorkoutExerciseFull,
+  WorkoutFull,
+  WorkoutSet,
+  api,
+} from "@/lib/api";
 
 type SetTimer = {
   phase: "idle" | "prep" | "work" | "done";
   isRunning: boolean;
   remainingSeconds: number;
+};
+
+type WorkoutStep = {
+  exercise: WorkoutExerciseFull;
+  exerciseIndex: number;
+  set: WorkoutSet;
+  setIndex: number;
 };
 
 function formatTimer(seconds: number) {
@@ -25,7 +37,8 @@ function ringBell() {
     AudioContext?: typeof AudioContext;
     webkitAudioContext?: typeof AudioContext;
   };
-  const AudioContextClass = audioWindow.AudioContext || audioWindow.webkitAudioContext;
+  const AudioContextClass =
+    audioWindow.AudioContext || audioWindow.webkitAudioContext;
 
   if (!AudioContextClass) return;
 
@@ -50,7 +63,7 @@ export default function WorkoutPage() {
   const params = useParams<{ workoutId: string }>();
   const workoutId = Number(params.workoutId);
   const [workout, setWorkout] = useState<WorkoutFull | null>(null);
-  const [activeExerciseIndex, setActiveExerciseIndex] = useState(0);
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [timers, setTimers] = useState<Record<number, SetTimer>>({});
   const [loading, setLoading] = useState(true);
@@ -58,11 +71,52 @@ export default function WorkoutPage() {
   const [error, setError] = useState<string | null>(null);
   const timerIntervals = useRef<Record<number, number>>({});
 
-  const activeExercise = workout?.exercises[activeExerciseIndex] ?? null;
-  const isFirstExercise = activeExerciseIndex === 0;
-  const isLastExercise = workout
-    ? activeExerciseIndex === workout.exercises.length - 1
+  const workoutSteps = useMemo<WorkoutStep[]>(() => {
+    if (!workout) return [];
+
+    return workout.exercises.flatMap((exercise, exerciseIndex) =>
+      exercise.sets.map((set, setIndex) => ({
+        exercise,
+        exerciseIndex,
+        set,
+        setIndex,
+      }))
+    );
+  }, [workout]);
+
+  const activeStep = workoutSteps[activeStepIndex] ?? null;
+  const activeExercise = activeStep?.exercise ?? null;
+  const activeSet = activeStep?.set ?? null;
+  const activeTimer = activeSet
+    ? timers[activeSet.id] ?? {
+        phase: "idle" as const,
+        isRunning: false,
+        remainingSeconds: activeSet.duration_seconds ?? 0,
+      }
+    : null;
+  const hasReps = activeExercise
+    ? activeExercise.sets.some((set) => set.reps !== null)
     : false;
+  const hasWeight = activeExercise
+    ? activeExercise.sets.some((set) => set.weight !== null)
+    : false;
+  const hasDuration = activeExercise
+    ? activeExercise.sets.some((set) => set.duration_seconds !== null)
+    : false;
+  const hasTimer =
+    activeSet?.duration_seconds !== null &&
+    activeSet?.duration_seconds !== undefined &&
+    activeSet.duration_seconds > 0;
+  const isTimerActive =
+    activeTimer !== null &&
+    (activeTimer.phase === "prep" || activeTimer.phase === "work") &&
+    activeTimer.isRunning;
+  const completedSets = workoutSteps.filter((step) => step.set.completed).length;
+  const progressPercent =
+    workoutSteps.length > 0 ? (completedSets / workoutSteps.length) * 100 : 0;
+  const isFirstStep = activeStepIndex === 0;
+  const isLastStep =
+    workoutSteps.length > 0 && activeStepIndex === workoutSteps.length - 1;
   const activeExerciseCompleted = activeExercise
     ? activeExercise.sets.length > 0 &&
       activeExercise.sets.every((set) => set.completed)
@@ -78,7 +132,7 @@ export default function WorkoutPage() {
 
         if (isActive) {
           setWorkout(data);
-          setActiveExerciseIndex(0);
+          setActiveStepIndex(0);
         }
       } catch {
         if (isActive) {
@@ -118,9 +172,7 @@ export default function WorkoutPage() {
         ...current,
         exercises: current.exercises.map((exercise) => ({
           ...exercise,
-          sets: exercise.sets.map((set) =>
-            set.id === setId ? nextSet : set
-          ),
+          sets: exercise.sets.map((set) => (set.id === setId ? nextSet : set)),
         })),
       };
     });
@@ -165,32 +217,28 @@ export default function WorkoutPage() {
     }
   }
 
-  async function toggleSet(set: WorkoutSet) {
-    setSaving(true);
-    setError(null);
-
-    try {
-      const updated = await api.updateSet(set.id, {
-        completed: !set.completed,
-      });
-      updateSet(set.id, updated);
-    } catch {
-      setError("No se pudo marcar la serie.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function completeSet(set: WorkoutSet) {
-    if (set.completed) return;
+    if (set.completed) return true;
 
     try {
       const updated = await api.updateSet(set.id, {
         completed: true,
       });
       updateSet(set.id, updated);
+      return true;
     } catch {
       setError("No se pudo marcar la serie.");
+      return false;
+    }
+  }
+
+  async function completeActiveSet(set: WorkoutSet) {
+    const completed = await completeSet(set);
+
+    if (completed) {
+      setActiveStepIndex((current) =>
+        Math.min(current + 1, Math.max(workoutSteps.length - 1, 0))
+      );
     }
   }
 
@@ -233,7 +281,7 @@ export default function WorkoutPage() {
           },
         }));
         ringBell();
-        void completeSet(set);
+        void completeActiveSet(set);
         return;
       }
 
@@ -305,7 +353,7 @@ export default function WorkoutPage() {
       },
     }));
 
-    void completeSet(set);
+    void completeActiveSet(set);
   }
 
   async function finishWorkout() {
@@ -325,21 +373,29 @@ export default function WorkoutPage() {
     }
   }
 
-  function goToPreviousExercise() {
-    setActiveExerciseIndex((current) => Math.max(current - 1, 0));
+  function goToPreviousStep() {
+    setActiveStepIndex((current) => Math.max(current - 1, 0));
   }
 
-  function goToNextExercise() {
-    if (!workout || !activeExerciseCompleted) return;
+  function goToNextStep() {
+    if (!activeSet?.completed) return;
 
-    setActiveExerciseIndex((current) =>
-      Math.min(current + 1, workout.exercises.length - 1)
+    setActiveStepIndex((current) =>
+      Math.min(current + 1, workoutSteps.length - 1)
     );
   }
 
-  function selectExercise(index: number) {
-    if (index <= activeExerciseIndex || activeExerciseCompleted) {
-      setActiveExerciseIndex(index);
+  function selectStep(index: number) {
+    const nextStep = workoutSteps[index];
+
+    if (!nextStep) return;
+
+    if (
+      index <= activeStepIndex ||
+      nextStep.set.completed ||
+      activeSet?.completed
+    ) {
+      setActiveStepIndex(index);
     }
   }
 
@@ -361,8 +417,8 @@ export default function WorkoutPage() {
         <section className="empty-state">Cargando workout...</section>
       ) : !workout ? (
         <section className="empty-state">Workout no encontrado.</section>
-      ) : workout.exercises.length === 0 ? (
-        <section className="empty-state">Este workout no tiene ejercicios.</section>
+      ) : workoutSteps.length === 0 ? (
+        <section className="empty-state">Este workout no tiene series.</section>
       ) : (
         <>
           <section className="mobile-card workout-summary">
@@ -372,192 +428,212 @@ export default function WorkoutPage() {
 
           <section className="mobile-card workout-step-progress">
             <span>
-              Ejercicio {activeExerciseIndex + 1} de {workout.exercises.length}
+              Serie {Math.min(activeStepIndex + 1, workoutSteps.length)} de{" "}
+              {workoutSteps.length}
             </span>
-            <div>
-              {workout.exercises.map((exercise, index) => (
+            <div className="workout-progress-track" aria-hidden="true">
+              <span style={{ width: `${progressPercent}%` }} />
+            </div>
+            <div className="workout-step-dots">
+              {workoutSteps.map((step, index) => (
                 <button
-                  aria-label={`Ir al ejercicio ${index + 1}`}
-                  className={index === activeExerciseIndex ? "active" : ""}
-                  disabled={index > activeExerciseIndex && !activeExerciseCompleted}
-                  key={exercise.id}
-                  onClick={() => selectExercise(index)}
+                  aria-label={`Ir a la serie ${index + 1}`}
+                  className={`${index === activeStepIndex ? "active" : ""} ${
+                    step.set.completed ? "done" : ""
+                  }`}
+                  disabled={
+                    index > activeStepIndex &&
+                    !step.set.completed &&
+                    !activeSet?.completed
+                  }
+                  key={step.set.id}
+                  onClick={() => selectStep(index)}
                   type="button"
                 />
               ))}
             </div>
           </section>
 
-          {activeExercise ? (
-            <section className="workout-step-card">
+          {activeExercise && activeStep && activeSet && activeTimer ? (
+            <section className="workout-step-card active-set-card">
               <div className="workout-exercise">
                 <div className="workout-exercise-header">
                   <span>{activeExercise.order_index}</span>
                   <strong>{activeExercise.exercise_name}</strong>
                 </div>
 
-                <div className="set-table">
-                  <div className="set-row set-head">
-                    <span>Set</span>
-                    <span>Reps</span>
-                    <span>Peso</span>
-                    <span>Min:Seg</span>
-                    <span>Done</span>
+                <div className={`active-set-body timer-${activeTimer.phase}`}>
+                  <div className="active-set-progress">
+                    <span>Serie {activeStep.setIndex + 1}</span>
+                    <span>
+                      Ejercicio {activeStep.exerciseIndex + 1} de{" "}
+                      {workout.exercises.length}
+                    </span>
                   </div>
 
-                  {activeExercise.sets.map((set, index) => {
-                    const timer = timers[set.id] ?? {
-                      phase: "idle",
-                      isRunning: false,
-                      remainingSeconds: set.duration_seconds ?? 0,
-                    };
-                    const hasTimer =
-                      set.duration_seconds !== null && set.duration_seconds > 0;
-                    const isTimerActive =
-                      (timer.phase === "prep" || timer.phase === "work") &&
-                      timer.isRunning;
+                  <div className="series-indicators" aria-hidden="true">
+                    {activeExercise.sets.map((set, index) => (
+                      <span
+                        className={`series-dot ${
+                          set.completed ? "done" : "pending"
+                        } ${index === activeStep.setIndex ? "active" : ""}`}
+                        key={set.id}
+                      />
+                    ))}
+                  </div>
 
-                    return (
-                    <div
-                      className={`set-row timer-${timer.phase}`}
-                      key={set.id}
-                    >
-                      <span>{index + 1}</span>
-                      <input
-                        min={0}
-                        type="number"
-                        value={set.reps ?? ""}
-                        onBlur={() => saveSet(set, "reps")}
-                        onChange={(event) =>
-                          updateSetDraft(
-                            set.id,
-                            "reps",
-                            event.target.value === ""
-                              ? null
-                              : Number(event.target.value)
-                          )
-                        }
-                      />
-                      <input
-                        min={0}
-                        step="0.5"
-                        type="number"
-                        value={set.weight ?? ""}
-                        onBlur={() => saveSet(set, "weight")}
-                        onChange={(event) =>
-                          updateSetDraft(
-                            set.id,
-                            "weight",
-                            event.target.value === ""
-                              ? null
-                              : Number(event.target.value)
-                          )
-                        }
-                      />
-                      <div className="duration-timer-cell">
+                  <div className="active-set-fields">
+                    {hasReps ? (
+                      <label className="active-field">
+                        <span>Repeticiones</span>
+                        <input
+                          min={0}
+                          type="number"
+                          value={activeSet.reps ?? ""}
+                          onBlur={() => saveSet(activeSet, "reps")}
+                          onChange={(event) =>
+                            updateSetDraft(
+                              activeSet.id,
+                              "reps",
+                              event.target.value === ""
+                                ? null
+                                : Number(event.target.value)
+                            )
+                          }
+                        />
+                      </label>
+                    ) : null}
+
+                    {hasWeight ? (
+                      <label className="active-field">
+                        <span>Peso</span>
+                        <input
+                          min={0}
+                          step="0.5"
+                          type="number"
+                          value={activeSet.weight ?? ""}
+                          onBlur={() => saveSet(activeSet, "weight")}
+                          onChange={(event) =>
+                            updateSetDraft(
+                              activeSet.id,
+                              "weight",
+                              event.target.value === ""
+                                ? null
+                                : Number(event.target.value)
+                            )
+                          }
+                        />
+                      </label>
+                    ) : null}
+
+                    {hasDuration ? (
+                      <label className="active-field">
+                        <span>Tiempo</span>
                         <DurationInput
-                          value={set.duration_seconds}
-                          onBlur={() => saveSet(set, "duration_seconds")}
+                          value={activeSet.duration_seconds}
+                          onBlur={() => saveSet(activeSet, "duration_seconds")}
                           onChange={(value) =>
                             updateSetDraft(
-                              set.id,
+                              activeSet.id,
                               "duration_seconds",
                               value
                             )
                           }
                         />
-                        {hasTimer ? (
-                          <div className="set-timer">
-                            <div className="timer-controls">
-                              <button
-                                aria-label="Iniciar temporizador"
-                                disabled={
-                                  workout.status === "completed" ||
-                                  saving ||
-                                  isTimerActive ||
-                                  timer.phase === "done"
-                                }
-                                onClick={() => startTimer(set)}
-                                title="Iniciar"
-                                type="button"
-                              >
-                                ▶
-                              </button>
-                              <button
-                                aria-label="Pausar temporizador"
-                                disabled={
-                                  workout.status === "completed" ||
-                                  saving ||
-                                  !isTimerActive
-                                }
-                                onClick={() => pauseTimer(set.id)}
-                                title="Pausar"
-                                type="button"
-                              >
-                                ||
-                              </button>
-                              <button
-                                aria-label="Terminar temporizador"
-                                disabled={
-                                  workout.status === "completed" ||
-                                  saving ||
-                                  timer.phase === "done"
-                                }
-                                onClick={() => finishTimer(set)}
-                                title="Terminar"
-                                type="button"
-                              >
-                                ✓
-                              </button>
-                            </div>
-                            <span>
-                              {timer.phase === "prep"
-                                ? `Prep ${timer.remainingSeconds}s`
-                                : timer.phase === "done"
-                                ? "Completado"
-                                : formatTimer(timer.remainingSeconds)}
-                            </span>
-                          </div>
-                        ) : null}
+                      </label>
+                    ) : null}
+                  </div>
+
+                  {hasTimer ? (
+                    <div className="big-timer-card">
+                      <div className="big-timer-display">
+                        {activeTimer.phase === "prep"
+                          ? `Prep ${activeTimer.remainingSeconds}s`
+                          : activeTimer.phase === "done"
+                          ? "Completado"
+                          : formatTimer(activeTimer.remainingSeconds)}
                       </div>
-                      <input
-                        checked={set.completed}
-                        className="set-checkbox"
-                        disabled={workout.status === "completed" || saving}
-                        onChange={() => toggleSet(set)}
-                        type="checkbox"
-                      />
+                      <div className="big-timer-actions">
+                        <button
+                          aria-label="Iniciar temporizador"
+                          disabled={
+                            workout.status === "completed" ||
+                            saving ||
+                            isTimerActive ||
+                            activeTimer.phase === "done"
+                          }
+                          onClick={() => startTimer(activeSet)}
+                          title="Iniciar"
+                          type="button"
+                        >
+                          ▶
+                        </button>
+                        <button
+                          aria-label="Pausar temporizador"
+                          disabled={
+                            workout.status === "completed" ||
+                            saving ||
+                            !isTimerActive
+                          }
+                          onClick={() => pauseTimer(activeSet.id)}
+                          title="Pausar"
+                          type="button"
+                        >
+                          ||
+                        </button>
+                        <button
+                          aria-label="Terminar temporizador"
+                          disabled={
+                            workout.status === "completed" ||
+                            saving ||
+                            activeTimer.phase === "done"
+                          }
+                          onClick={() => finishTimer(activeSet)}
+                          title="Terminar"
+                          type="button"
+                        >
+                          ✓
+                        </button>
+                      </div>
                     </div>
-                    );
-                  })}
+                  ) : null}
+
+                  <button
+                    className="primary-action complete-set-button"
+                    disabled={
+                      workout.status === "completed" ||
+                      saving ||
+                      activeSet.completed
+                    }
+                    onClick={() => completeActiveSet(activeSet)}
+                    type="button"
+                  >
+                    {activeSet.completed ? "Serie completada" : "Completar serie"}
+                  </button>
                 </div>
               </div>
             </section>
           ) : null}
 
-          {!activeExerciseCompleted ? (
-            <p className="workout-step-hint">
-              Completa todos los Done para continuar.
-            </p>
+          {activeExercise && !activeExerciseCompleted ? (
+            <p className="workout-step-hint">Completa esta serie para avanzar.</p>
           ) : null}
 
           <section className="workout-step-actions">
             <button
               className="secondary-action"
-              disabled={isFirstExercise || saving}
-              onClick={goToPreviousExercise}
+              disabled={isFirstStep || saving}
+              onClick={goToPreviousStep}
               type="button"
             >
               Anterior
             </button>
 
-            {isLastExercise ? (
+            {isLastStep ? (
               <button
                 className="primary-action"
                 disabled={
-                  workout.status === "completed" ||
-                  saving ||
-                  !activeExerciseCompleted
+                  workout.status === "completed" || saving || !activeSet?.completed
                 }
                 onClick={finishWorkout}
                 type="button"
@@ -567,11 +643,11 @@ export default function WorkoutPage() {
             ) : (
               <button
                 className="primary-action"
-                disabled={saving || !activeExerciseCompleted}
-                onClick={goToNextExercise}
+                disabled={saving || !activeSet?.completed}
+                onClick={goToNextStep}
                 type="button"
               >
-                Siguiente ejercicio
+                Siguiente serie
               </button>
             )}
           </section>

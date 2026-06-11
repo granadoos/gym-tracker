@@ -46,6 +46,7 @@ export default function ConfigurationBuilder({
   const [exerciseId, setExerciseId] = useState<number | null>(null);
   const [defaultSets, setDefaultSets] = useState(3);
   const [defaultReps, setDefaultReps] = useState<number | "">(10);
+  const [defaultWeight, setDefaultWeight] = useState<number | "">("");
   const [defaultTimeSeconds, setDefaultTimeSeconds] =  useState<number | null>(null);
 
   const selectedDay = planDays.find((day) => day.id === selectedDayId);
@@ -264,6 +265,7 @@ export default function ConfigurationBuilder({
         order_index: planExercises.length + 1,
         default_sets: defaultSets,
         default_reps: defaultReps === "" ? null : defaultReps,
+        default_weight: defaultWeight === "" ? null : defaultWeight,
         default_time_seconds: defaultTimeSeconds,
       });
       await loadPlanExercises(selectedDayId);
@@ -539,6 +541,21 @@ export default function ConfigurationBuilder({
                   onChange={setDefaultTimeSeconds}
                 />
             </div>
+            <div className="flex flex-col gap-1">
+              <label>Peso</label>
+              <input
+                min={0}
+                placeholder="Kg"
+                step="0.5"
+                type="number"
+                value={defaultWeight}
+                onChange={(event) =>
+                  setDefaultWeight(
+                    event.target.value === "" ? "" : Number(event.target.value)
+                  )
+                }
+              />
+            </div>
             <div className="flex flex-col justify-end">
               <button disabled={!selectedDayId || !exerciseId || saving} type="submit">
                 Anadir
@@ -565,6 +582,7 @@ export default function ConfigurationBuilder({
               <span>Ejercicio</span>
               <span>Series</span>
               <span>Objetivo</span>
+              <span>Peso</span>
               <span></span>
             </div>
             {planExercises.map((item) => (
@@ -576,6 +594,11 @@ export default function ConfigurationBuilder({
                   {item.default_time_seconds
                     ? `${formatDuration(item.default_time_seconds)}`
                     : `${item.default_reps ?? "-"} reps`}
+                </span>
+                <span>
+                  {item.default_weight !== null
+                    ? `${item.default_weight} kg`
+                    : "-"}
                 </span>
                 <button
                   aria-label={`Borrar ${item.exercise_name}`}

@@ -183,6 +183,7 @@ def add_exercise_to_day(
         order_index=plan_exercise_create.order_index,
         default_sets=plan_exercise_create.default_sets,
         default_reps=plan_exercise_create.default_reps,
+        default_weight=plan_exercise_create.default_weight,
         default_time_seconds=plan_exercise_create.default_time_seconds
     )
 
@@ -229,6 +230,7 @@ def get_plan_day_exercises(
             "order_index": plan_exercise.order_index,
             "default_sets": plan_exercise.default_sets,
             "default_reps": plan_exercise.default_reps,
+            "default_weight": plan_exercise.default_weight,
             "default_time_seconds": plan_exercise.default_time_seconds,
         }
         for plan_exercise, exercise_name, day_of_week, training_plan_name in rows
