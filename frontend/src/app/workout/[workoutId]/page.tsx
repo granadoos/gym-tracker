@@ -38,7 +38,9 @@ function formatTimer(seconds: number) {
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
-function ringBell() {
+let audioContextInstance: AudioContext | null = null;
+
+function initAudioContext() {
   const audioWindow = window as Window & {
     AudioContext?: typeof AudioContext;
     webkitAudioContext?: typeof AudioContext;
@@ -46,31 +48,154 @@ function ringBell() {
   const AudioContextClass =
     audioWindow.AudioContext || audioWindow.webkitAudioContext;
 
-  if (!AudioContextClass) return;
+  if (!AudioContextClass) return null;
 
-  const audioContext = new AudioContextClass();
-  
-  // Resume audio context for iOS compatibility
-  if (audioContext.state === 'suspended') {
-    audioContext.resume().catch((error) => {
-      console.warn('Could not resume audio context:', error);
+  if (!audioContextInstance) {
+    audioContextInstance = new AudioContextClass();
+  }
+
+  // Resume audio context if suspended (iOS)
+  if (audioContextInstance.state === 'suspended') {
+    audioContextInstance.resume().catch(() => {
+      // Silent catch for iOS
     });
   }
+
+  return audioContextInstance;
+}
+
+function ringBell() {
+  // Intentar primero con Web Audio API
+  const audioContext = initAudioContext();
   
-  const oscillator = audioContext.createOscillator();
-  const gain = audioContext.createGain();
+  if (audioContext) {
+    try {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
 
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
-  oscillator.frequency.setValueAtTime(660, audioContext.currentTime + 0.16);
-  gain.gain.setValueAtTime(0.001, audioContext.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.35, audioContext.currentTime + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.7);
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(660, audioContext.currentTime + 0.16);
+      gain.gain.setValueAtTime(0.001, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.35, audioContext.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.7);
 
-  oscillator.connect(gain);
-  gain.connect(audioContext.destination);
-  oscillator.start();
-  oscillator.stop(audioContext.currentTime + 0.75);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.75);
+      return;
+    } catch (error) {
+      console.warn('Web Audio API failed:', error);
+    }
+  }
+
+  // Fallback: usar elemento de audio HTML
+  const audioElement = new Audio();
+  audioElement.volume = 0.3;
+  
+  // Generar un sonido simple en base64 (WAV de una onda sinusoidal)
+  const sampleRate = 44100;
+  const duration = 0.75;
+  const frequency1 = 880;
+  const frequency2 = 660;
+  const changeTime = 0.16;
+  
+  const samples = generateAudioSamples(sampleRate, duration, frequency1, frequency2, changeTime);
+  const blob = new Blob([samples], { type: 'audio/wav' });
+  const url = URL.createObjectURL(blob);
+  
+  audioElement.src = url;
+  audioElement.play().catch((error) => {
+    console.warn('Audio playback failed:', error);
+  });
+  
+  // Limpiar el URL después de reproducir
+  audioElement.onended = () => {
+    URL.revokeObjectURL(url);
+  };
+}
+
+function generateAudioSamples(
+  sampleRate: number,
+  duration: number,
+  freq1: number,
+  freq2: number,
+  changeTime: number
+): Uint8Array {
+  const totalSamples = Math.floor(sampleRate * duration);
+  const changePoint = Math.floor(sampleRate * changeTime);
+  
+  const audioBuffer = new Float32Array(totalSamples);
+  
+  for (let i = 0; i < totalSamples; i++) {
+    const t = i / sampleRate;
+    const frequency = i < changePoint ? freq1 : freq2;
+    
+    // Envelope: fade in then fade out
+    let envelope = 0;
+    if (t < 0.02) {
+      envelope = t / 0.02; // Fade in
+    } else if (t < 0.7) {
+      envelope = 1;
+    } else {
+      envelope = (0.75 - t) / 0.05; // Fade out
+    }
+    
+    const sample = Math.sin(2 * Math.PI * frequency * t) * envelope * 0.3;
+    audioBuffer[i] = sample;
+  }
+  
+  // Convertir Float32 a WAV
+  return encodeWAV(audioBuffer, sampleRate);
+}
+
+function encodeWAV(samples: Float32Array, sampleRate: number): Uint8Array {
+  const channelData = [samples];
+  const format = 1; // PCM
+  const numChannels = 1;
+  const bitDepth = 16;
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numChannels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataLength = samples.length * blockAlign;
+  const fileLength = 36 + dataLength;
+
+  const buffer = new ArrayBuffer(44 + dataLength);
+  const view = new DataView(buffer);
+
+  // WAV header
+  const writeString = (offset: number, string: string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+
+  writeString(0, "RIFF");
+  view.setUint32(4, fileLength, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true); // fmt chunk size
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitDepth, true);
+  writeString(36, "data");
+  view.setUint32(40, dataLength, true);
+
+  // Audio samples
+  let offset = 44;
+  const volume = 0.8;
+  for (let i = 0; i < samples.length; i++) {
+    const sample = samples[i] * volume;
+    const s = Math.max(-1, Math.min(1, sample));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    offset += 2;
+  }
+
+  return new Uint8Array(buffer);
 }
 
 export default function WorkoutPage() {
@@ -336,6 +461,9 @@ export default function WorkoutPage() {
 
   function startTimer(set: WorkoutSet) {
     if (!set.duration_seconds || set.duration_seconds <= 0) return;
+
+    // Initialize audio context on user interaction (required for iOS)
+    initAudioContext();
 
     const totalSeconds = set.duration_seconds;
     const currentTimer = timers[set.id];
