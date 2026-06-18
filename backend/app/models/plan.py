@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Float, Integer, String, ForeignKey
+from sqlalchemy import Column, Float, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from app.database.database import Base
 
 
@@ -45,5 +46,7 @@ class PlanExercise(Base):
     default_weight = Column(Float, nullable=True)
     
     default_time_seconds = Column(Integer, nullable=True)
+
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     day = relationship("PlanDay", back_populates="exercises")

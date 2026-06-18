@@ -30,8 +30,13 @@ export function formatDurationInput(
     return "";
   }
 
-  const mins = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
   const secs = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
 
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
@@ -41,18 +46,26 @@ export function parseDurationInput(
 ): number | null {
   if (!value) return null;
 
-  const parts = value.split(":");
+  const parts = value.split(":").map((p) => p.trim());
 
-  if (parts.length !== 2) {
-    return null;
+  if (parts.length === 2) {
+    const mins = Number(parts[0]);
+    const secs = Number(parts[1]);
+
+    if (isNaN(mins) || isNaN(secs)) return null;
+
+    return mins * 60 + secs;
   }
 
-  const mins = Number(parts[0]);
-  const secs = Number(parts[1]);
+  if (parts.length === 3) {
+    const hours = Number(parts[0]);
+    const mins = Number(parts[1]);
+    const secs = Number(parts[2]);
 
-  if (isNaN(mins) || isNaN(secs)) {
-    return null;
+    if (isNaN(hours) || isNaN(mins) || isNaN(secs)) return null;
+
+    return hours * 3600 + mins * 60 + secs;
   }
 
-  return mins * 60 + secs;
+  return null;
 }

@@ -379,17 +379,18 @@ export default function WorkoutPage() {
   }
 
   async function saveSet(
-    set: WorkoutSet,
-    field: "reps" | "weight" | "duration_seconds"
+    setId: number,
+    field: "reps" | "weight" | "duration_seconds",
+    value: number | null
   ) {
     setSaving(true);
     setError(null);
 
     try {
-      const updated = await api.updateSet(set.id, {
-        [field]: set[field],
+      const updated = await api.updateSet(setId, {
+        [field]: value,
       });
-      updateSet(set.id, updated);
+      updateSet(setId, updated);
     } catch {
       setError("No se pudo actualizar la serie.");
     } finally {
@@ -673,7 +674,13 @@ export default function WorkoutPage() {
                           min={0}
                           type="number"
                           value={activeSet.reps ?? ""}
-                          onBlur={() => saveSet(activeSet, "reps")}
+                          onBlur={() =>
+                            saveSet(
+                              activeSet.id,
+                              "reps",
+                              activeSet.reps ?? null
+                            )
+                          }
                           onChange={(event) =>
                             updateSetDraft(
                               activeSet.id,
@@ -695,7 +702,13 @@ export default function WorkoutPage() {
                           step="0.5"
                           type="number"
                           value={activeSet.weight ?? ""}
-                          onBlur={() => saveSet(activeSet, "weight")}
+                          onBlur={() =>
+                            saveSet(
+                              activeSet.id,
+                              "weight",
+                              activeSet.weight ?? null
+                            )
+                          }
                           onChange={(event) =>
                             updateSetDraft(
                               activeSet.id,
@@ -714,7 +727,9 @@ export default function WorkoutPage() {
                         <span>Tiempo</span>
                         <DurationInput
                           value={activeSet.duration_seconds}
-                          onBlur={() => saveSet(activeSet, "duration_seconds")}
+                          onBlur={(value) =>
+                            saveSet(activeSet.id, "duration_seconds", value)
+                          }
                           onChange={(value) =>
                             updateSetDraft(
                               activeSet.id,

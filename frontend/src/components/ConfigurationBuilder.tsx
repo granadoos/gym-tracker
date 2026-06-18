@@ -297,6 +297,22 @@ export default function ConfigurationBuilder({
     }
   }
 
+  async function handleTouchPlanExercise(planExerciseId: number) {
+    if (!selectedDayId) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      await api.touchPlanExercise(selectedDayId, planExerciseId);
+      await loadPlanExercises(selectedDayId);
+    } catch {
+      setError("No se pudo marcar el ejercicio como inicio.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDeleteExercise(exercise: Exercise) {
     const confirmed = window.confirm(`Borrar ${exercise.name} del catalogo?`);
     if (!confirmed) return;
@@ -583,6 +599,7 @@ export default function ConfigurationBuilder({
               <span>Series</span>
               <span>Objetivo</span>
               <span>Peso</span>
+              <span>Acciones</span>
               <span></span>
             </div>
             {planExercises.map((item) => (
@@ -600,6 +617,15 @@ export default function ConfigurationBuilder({
                     ? `${item.default_weight} kg`
                     : "-"}
                 </span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  disabled={saving}
+                  onClick={() => handleTouchPlanExercise(item.id)}
+                  title="Marcar este ejercicio como inicio del siguiente workout"
+                >
+                  ↻
+                </button>
                 <button
                   aria-label={`Borrar ${item.exercise_name}`}
                   className="icon-button danger"

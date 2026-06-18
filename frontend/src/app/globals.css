@@ -568,7 +568,7 @@ select:focus {
 
 .table-row {
   display: grid;
-  grid-template-columns: 70px minmax(140px, 1fr) 80px 110px 90px 36px;
+  grid-template-columns: 70px minmax(140px, 1fr) 80px 80px 90px 36px 36px;
   gap: 12px;
   align-items: center;
   min-height: 44px;

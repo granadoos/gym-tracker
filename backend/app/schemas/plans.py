@@ -21,3 +21,11 @@ class PlanExerciseCreate(BaseModel):
     default_reps: Optional[int] = None
     default_weight: Optional[float] = None
     default_time_seconds: Optional[int] = None
+
+
+class PlanExerciseUpdate(BaseModel):
+    default_sets: Optional[int] = None
+    default_reps: Optional[int] = None
+    default_weight: Optional[float] = None
+    default_time_seconds: Optional[int] = None
+

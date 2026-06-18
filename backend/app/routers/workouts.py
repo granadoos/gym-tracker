@@ -27,14 +27,16 @@ def get_db():
 
 def get_latest_sets_by_exercise(
     db: Session,
-    exercise_ids: list[int]
+    exercise_ids: list[int],
+    exclude_workout_id: int | None = None,
 ):
     if not exercise_ids:
         return {}
-
-    ranked_workout_exercises = db.query(
+    # Build base query for ranking workout_exercises per exercise
+    base_q = db.query(
         WorkoutExercise.id.label("workout_exercise_id"),
         WorkoutExercise.exercise_id.label("exercise_id"),
+        Workout.date.label("workout_date"),
         func.row_number().over(
             partition_by=WorkoutExercise.exercise_id,
             order_by=(
@@ -48,7 +50,12 @@ def get_latest_sets_by_exercise(
         Workout.id == WorkoutExercise.workout_id
     ).filter(
         WorkoutExercise.exercise_id.in_(exercise_ids)
-    ).subquery()
+    )
+
+    if exclude_workout_id is not None:
+        base_q = base_q.filter(Workout.id != exclude_workout_id)
+
+    ranked_workout_exercises = base_q.subquery()
 
     latest_workout_exercises = db.query(WorkoutExercise).options(
         joinedload(WorkoutExercise.sets)
@@ -60,10 +67,15 @@ def get_latest_sets_by_exercise(
     ).all()
 
     return {
-        workout_exercise.exercise_id: sorted(
-            workout_exercise.sets,
-            key=lambda current_set: current_set.id
-        )
+        workout_exercise.exercise_id: {
+            "sets": sorted(
+                workout_exercise.sets,
+                key=lambda current_set: current_set.id
+            ),
+            "workout_date": db.query(ranked_workout_exercises.c.workout_date).filter(
+                ranked_workout_exercises.c.workout_exercise_id == workout_exercise.id
+            ).first()[0] if workout_exercise.id else None
+        }
         for workout_exercise in latest_workout_exercises
     }
 
@@ -99,12 +111,13 @@ def start_workout(
         PlanExercise.plan_day_id == plan_day.id
     ).order_by(PlanExercise.order_index).all()
 
-    latest_sets_by_exercise = get_latest_sets_by_exercise(
+    latest_exercises_data = get_latest_sets_by_exercise(
         db=db,
         exercise_ids=[
             plan_exercise.exercise_id
             for plan_exercise in plan_exercises
-        ]
+        ],
+        exclude_workout_id=workout.id
     )
 
     for plan_exercise in plan_exercises:
@@ -120,13 +133,22 @@ def start_workout(
         db.commit()
         db.refresh(workout_exercise)
 
-        # Crear sets vacíos
-        latest_sets = latest_sets_by_exercise.get(
+        # Obtener datos del último historial
+        exercise_history = latest_exercises_data.get(
             plan_exercise.exercise_id,
-            []
+            {"sets": [], "workout_date": None}
+        )
+        latest_sets = exercise_history["sets"]
+        latest_workout_date = exercise_history["workout_date"]
+
+        # Comparar recencia: si plan_exercise fue actualizado después del último workout, usar plan defaults
+        use_plan_defaults = (
+            plan_exercise.updated_at and 
+            latest_workout_date and 
+            plan_exercise.updated_at > latest_workout_date
         )
 
-        # Crear sets vacios usando el ultimo historial como referencia
+        # Crear sets usando lógica de recencia
         for set_index in range(plan_exercise.default_sets):
             latest_set = (
                 latest_sets[set_index]
@@ -134,35 +156,35 @@ def start_workout(
                 else None
             )
 
+            # Determinar valores a usar basado en recencia
+            if use_plan_defaults:
+                # Plan exercise es más reciente, usar plan defaults
+                reps = plan_exercise.default_reps
+                duration_seconds = plan_exercise.default_time_seconds
+                weight = plan_exercise.default_weight
+            else:
+                # Usar workout history si existe, sino plan defaults
+                reps = (
+                    latest_set.reps
+                    if latest_set and latest_set.reps is not None
+                    else plan_exercise.default_reps
+                )
+                duration_seconds = (
+                    latest_set.duration_seconds
+                    if latest_set and latest_set.duration_seconds is not None
+                    else plan_exercise.default_time_seconds
+                )
+                weight = (
+                    latest_set.weight
+                    if latest_set and latest_set.weight is not None
+                    else plan_exercise.default_weight
+                )
+
             new_set = Set(
                 workout_exercise_id=workout_exercise.id,
-                reps=(
-                    latest_set.reps
-                    if (
-                        plan_exercise.default_reps is not None
-                        and latest_set
-                        and latest_set.reps is not None
-                    )
-                    else plan_exercise.default_reps
-                ),
-                duration_seconds=(
-                    latest_set.duration_seconds
-                    if (
-                        plan_exercise.default_time_seconds is not None
-                        and latest_set
-                        and latest_set.duration_seconds is not None
-                    )
-                    else plan_exercise.default_time_seconds
-                ),
-                weight=(
-                    latest_set.weight
-                    if (
-                        plan_exercise.default_weight is not None
-                        and latest_set
-                        and latest_set.weight is not None
-                    )
-                    else plan_exercise.default_weight
-                ),
+                reps=reps,
+                duration_seconds=duration_seconds,
+                weight=weight,
                 completed=False
             )
 

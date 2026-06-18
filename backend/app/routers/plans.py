@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.database.database import SessionLocal
 from app.models.plan import TrainingPlan,PlanDay, PlanExercise
 from app.models.exercise import Exercise
-from app.schemas.plans import PlanCreate, PlanDayCreate, PlanDayPlanUpdate, PlanExerciseCreate
+from app.schemas.plans import PlanCreate, PlanDayCreate, PlanDayPlanUpdate, PlanExerciseCreate, PlanExerciseUpdate
 
 router = APIRouter(
     prefix="/plans",
@@ -258,3 +259,64 @@ def delete_plan_exercise(
     db.commit()
 
     return {"message": "plan exercise deleted"}
+
+
+@router.patch("/days/{plan_day_id}/exercises/{plan_exercise_id}")
+def update_plan_exercise(
+    plan_day_id: int,
+    plan_exercise_id: int,
+    plan_exercise_update: PlanExerciseUpdate,
+    db: Session = Depends(get_db)
+):
+    plan_exercise = db.query(PlanExercise).filter(
+        PlanExercise.id == plan_exercise_id,
+        PlanExercise.plan_day_id == plan_day_id
+    ).first()
+
+    if not plan_exercise:
+        raise HTTPException(
+            status_code=404,
+            detail="Plan exercise not found"
+        )
+
+    if plan_exercise_update.default_sets is not None:
+        plan_exercise.default_sets = plan_exercise_update.default_sets
+    
+    if plan_exercise_update.default_reps is not None:
+        plan_exercise.default_reps = plan_exercise_update.default_reps
+    
+    if plan_exercise_update.default_weight is not None:
+        plan_exercise.default_weight = plan_exercise_update.default_weight
+    
+    if plan_exercise_update.default_time_seconds is not None:
+        plan_exercise.default_time_seconds = plan_exercise_update.default_time_seconds
+
+    db.commit()
+    db.refresh(plan_exercise)
+
+    return plan_exercise
+
+
+@router.post("/days/{plan_day_id}/exercises/{plan_exercise_id}/touch")
+def touch_plan_exercise(
+    plan_day_id: int,
+    plan_exercise_id: int,
+    db: Session = Depends(get_db)
+):
+    plan_exercise = db.query(PlanExercise).filter(
+        PlanExercise.id == plan_exercise_id,
+        PlanExercise.plan_day_id == plan_day_id
+    ).first()
+
+    if not plan_exercise:
+        raise HTTPException(
+            status_code=404,
+            detail="Plan exercise not found"
+        )
+
+    plan_exercise.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(plan_exercise)
+
+    return plan_exercise
+

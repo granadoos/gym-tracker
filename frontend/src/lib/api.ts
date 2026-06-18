@@ -160,6 +160,13 @@ export const api = {
         method: "DELETE",
       }
     ),
+  touchPlanExercise: (planDayId: number, planExerciseId: number) =>
+    request<PlanExercise>(
+      `/plans/days/${planDayId}/exercises/${planExerciseId}/touch`,
+      {
+        method: "POST",
+      }
+    ),
 
   startWorkout: (planDayId: number) =>
     request<{ message: string; workout_id: number }>(
