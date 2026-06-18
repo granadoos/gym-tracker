@@ -24,6 +24,12 @@ type WorkoutStep = {
   setIndex: number;
 };
 
+type WorkoutStepGroup = {
+  exercise: WorkoutExerciseFull;
+  exerciseIndex: number;
+  steps: Array<WorkoutStep & { globalIndex: number }>;
+};
+
 function formatTimer(seconds: number) {
   const safeSeconds = Math.max(seconds, 0);
   const mins = Math.floor(safeSeconds / 60);
@@ -84,6 +90,33 @@ export default function WorkoutPage() {
     );
   }, [workout]);
 
+  const workoutStepGroups = useMemo<WorkoutStepGroup[]>(() => {
+    if (!workout) return [];
+
+    let globalIndex = 0;
+
+    return workout.exercises.map((exercise, exerciseIndex) => {
+      const steps = exercise.sets.map((set, setIndex) => {
+        const step = {
+          exercise,
+          exerciseIndex,
+          set,
+          setIndex,
+          globalIndex,
+        } as WorkoutStep & { globalIndex: number };
+
+        globalIndex += 1;
+        return step;
+      });
+
+      return {
+        exercise,
+        exerciseIndex,
+        steps,
+      };
+    });
+  }, [workout]);
+
   const activeStep = workoutSteps[activeStepIndex] ?? null;
   const activeExercise = activeStep?.exercise ?? null;
   const activeSet = activeStep?.set ?? null;
@@ -111,9 +144,6 @@ export default function WorkoutPage() {
     activeTimer !== null &&
     (activeTimer.phase === "prep" || activeTimer.phase === "work") &&
     activeTimer.isRunning;
-  const completedSets = workoutSteps.filter((step) => step.set.completed).length;
-  const progressPercent =
-    workoutSteps.length > 0 ? (completedSets / workoutSteps.length) * 100 : 0;
   const isFirstStep = activeStepIndex === 0;
   const isLastStep =
     workoutSteps.length > 0 && activeStepIndex === workoutSteps.length - 1;
@@ -427,30 +457,32 @@ export default function WorkoutPage() {
           </section>
 
           <section className="mobile-card workout-step-progress">
-            <span>
-              Serie {Math.min(activeStepIndex + 1, workoutSteps.length)} de{" "}
-              {workoutSteps.length}
-            </span>
-            <div className="workout-progress-track" aria-hidden="true">
-              <span style={{ width: `${progressPercent}%` }} />
+            <div className="workout-step-summary">
+              <span>
+                Ejercicio {activeExercise?.order_index ?? 0} de {workout.exercises.length}
+              </span>
             </div>
             <div className="workout-step-dots">
-              {workoutSteps.map((step, index) => (
-                <button
-                  aria-label={`Ir a la serie ${index + 1}`}
-                  className={`${index === activeStepIndex ? "active" : ""} ${
-                    step.set.completed ? "done" : ""
-                  }`}
-                  disabled={
-                    index > activeStepIndex &&
-                    !step.set.completed &&
-                    !activeSet?.completed
-                  }
-                  key={step.set.id}
-                  onClick={() => selectStep(index)}
-                  type="button"
-                />
-              ))}
+              {workoutStepGroups.map((group) => {
+                const isDone = group.steps.every((s) => s.set.completed);
+                const firstIndex = group.steps[0]?.globalIndex ?? 0;
+                const isActive = activeStep?.exerciseIndex === group.exerciseIndex;
+
+                return (
+                  <button
+                    aria-label={`Ir al ejercicio ${group.exercise.order_index}`}
+                    className={`${isActive ? "active" : ""} ${isDone ? "done" : ""}`}
+                    disabled={
+                      firstIndex > activeStepIndex &&
+                      !isDone &&
+                      !activeSet?.completed
+                    }
+                    key={group.exercise.id}
+                    onClick={() => selectStep(firstIndex)}
+                    type="button"
+                  />
+                );
+              })}
             </div>
           </section>
 
@@ -464,10 +496,8 @@ export default function WorkoutPage() {
 
                 <div className={`active-set-body timer-${activeTimer.phase}`}>
                   <div className="active-set-progress">
-                    <span>Serie {activeStep.setIndex + 1}</span>
                     <span>
-                      Ejercicio {activeStep.exerciseIndex + 1} de{" "}
-                      {workout.exercises.length}
+                      Serie {activeStep.setIndex + 1} de {activeExercise.sets.length}
                     </span>
                   </div>
 

@@ -1,18 +1,13 @@
 #Comandos Git (Windows)
 git add .
 git commit -m "Comandos"
-push -u origin main
+git push -u origin main
 
 #Parar contenedores (NAS)
 docker compose down
 
-
 #Traer los cambios de Github (NAS)
-docker run --rm \ 
-  -v /share/Container/gym-tracker:/repo \
-  -w /repo \
-  alpine/git pull
-
+docker run --rm -v /share/Container/gym-tracker:/repo -w /repo alpine/git pull
 
 #Arrancar contenerdores (NAS)
 docker compose up -d --build

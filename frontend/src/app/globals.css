@@ -788,6 +788,33 @@ select:focus {
   opacity: 0.35;
 }
 
+.exercise-step-group {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.exercise-step-group:first-child {
+  border-top: none;
+}
+
+.exercise-step-group-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.exercise-step-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18px, 1fr));
+  gap: 6px;
+}
+
 .workout-step-card {
   display: grid;
   gap: 12px;
