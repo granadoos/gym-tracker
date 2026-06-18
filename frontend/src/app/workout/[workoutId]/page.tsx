@@ -49,6 +49,14 @@ function ringBell() {
   if (!AudioContextClass) return;
 
   const audioContext = new AudioContextClass();
+  
+  // Resume audio context for iOS compatibility
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().catch((error) => {
+      console.warn('Could not resume audio context:', error);
+    });
+  }
+  
   const oscillator = audioContext.createOscillator();
   const gain = audioContext.createGain();
 
