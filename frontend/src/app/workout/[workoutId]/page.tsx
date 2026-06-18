@@ -76,9 +76,10 @@ function ringBell() {
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
       oscillator.frequency.setValueAtTime(660, audioContext.currentTime + 0.16);
+      oscillator.frequency.setValueAtTime(440, audioContext.currentTime + 0.4);
       gain.gain.setValueAtTime(0.001, audioContext.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.35, audioContext.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.7);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.75);
 
       oscillator.connect(gain);
       gain.connect(audioContext.destination);
@@ -94,14 +95,23 @@ function ringBell() {
   const audioElement = new Audio();
   audioElement.volume = 0.3;
   
-  // Generar un sonido simple en base64 (WAV de una onda sinusoidal)
   const sampleRate = 44100;
   const duration = 0.75;
   const frequency1 = 880;
   const frequency2 = 660;
-  const changeTime = 0.16;
+  const frequency3 = 440;
+  const firstChange = 0.16;
+  const secondChange = 0.4;
   
-  const samples = generateAudioSamples(sampleRate, duration, frequency1, frequency2, changeTime);
+  const samples = generateAudioSamples(
+    sampleRate,
+    duration,
+    frequency1,
+    frequency2,
+    frequency3,
+    firstChange,
+    secondChange
+  );
   const blob = new Blob([samples], { type: 'audio/wav' });
   const url = URL.createObjectURL(blob);
   
@@ -110,7 +120,6 @@ function ringBell() {
     console.warn('Audio playback failed:', error);
   });
   
-  // Limpiar el URL después de reproducir
   audioElement.onended = () => {
     URL.revokeObjectURL(url);
   };
@@ -121,32 +130,40 @@ function generateAudioSamples(
   duration: number,
   freq1: number,
   freq2: number,
-  changeTime: number
+  freq3: number,
+  firstChange: number,
+  secondChange: number
 ): Uint8Array {
   const totalSamples = Math.floor(sampleRate * duration);
-  const changePoint = Math.floor(sampleRate * changeTime);
+  const firstChangePoint = Math.floor(sampleRate * firstChange);
+  const secondChangePoint = Math.floor(sampleRate * secondChange);
   
   const audioBuffer = new Float32Array(totalSamples);
   
   for (let i = 0; i < totalSamples; i++) {
     const t = i / sampleRate;
-    const frequency = i < changePoint ? freq1 : freq2;
+    let frequency = freq1;
+
+    if (i >= secondChangePoint) {
+      frequency = freq3;
+    } else if (i >= firstChangePoint) {
+      frequency = freq2;
+    }
     
     // Envelope: fade in then fade out
     let envelope = 0;
     if (t < 0.02) {
       envelope = t / 0.02; // Fade in
-    } else if (t < 0.7) {
+    } else if (t < duration - 0.05) {
       envelope = 1;
     } else {
-      envelope = (0.75 - t) / 0.05; // Fade out
+      envelope = Math.max(0, (duration - t) / 0.05); // Fade out
     }
     
     const sample = Math.sin(2 * Math.PI * frequency * t) * envelope * 0.3;
     audioBuffer[i] = sample;
   }
   
-  // Convertir Float32 a WAV
   return encodeWAV(audioBuffer, sampleRate);
 }
 
