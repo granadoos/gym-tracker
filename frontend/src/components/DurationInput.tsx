@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   formatDurationInput,
@@ -19,6 +19,10 @@ export default function DurationInput({
   onBlur,
 }: Props) {
   const [display, setDisplay] = useState(formatDurationInput(value));
+
+  useEffect(() => {
+    setDisplay(formatDurationInput(value));
+  }, [value]);
 
   return (
     <input
