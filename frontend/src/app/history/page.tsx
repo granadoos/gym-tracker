@@ -1,55 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { WorkoutFull, WorkoutSummary, api } from "@/lib/api";
-import { formatDurationInput } from "@/lib/formatter";
+import { useEffect, useState } from "react";
+import { WorkoutSummary, api } from "@/lib/api";
 
 function formatWorkoutDate(value: string) {
   return new Date(value).toLocaleString();
 }
 
-function formatSetValue(value: number | null, suffix = "") {
-  if (value === null) return "-";
-
-  return `${value}${suffix}`;
-}
-
 export default function HistoryPage() {
   const [workouts, setWorkouts] = useState<WorkoutSummary[]>([]);
-  const [selectedWorkoutId, setSelectedWorkoutId] = useState<number | null>(
-    null
-  );
-  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutFull | null>(
-    null
-  );
   const [loadingList, setLoadingList] = useState(true);
-  const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const selectedSummary = workouts.find(
-    (workout) => workout.id === selectedWorkoutId
-  );
-
-  const workoutStats = useMemo(() => {
-    if (!selectedWorkout) {
-      return {
-        exercises: 0,
-        sets: 0,
-        completedSets: 0,
-      };
-    }
-
-    const sets = selectedWorkout.exercises.flatMap(
-      (exercise) => exercise.sets
-    );
-
-    return {
-      exercises: selectedWorkout.exercises.length,
-      sets: sets.length,
-      completedSets: sets.filter((set) => set.completed).length,
-    };
-  }, [selectedWorkout]);
 
   useEffect(() => {
     let isActive = true;
@@ -62,7 +24,6 @@ export default function HistoryPage() {
         if (!isActive) return;
 
         setWorkouts(data);
-        setSelectedWorkoutId(data[0]?.id ?? null);
       } catch {
         if (isActive) {
           setError("No se pudo cargar el historico.");
@@ -81,42 +42,6 @@ export default function HistoryPage() {
     };
   }, []);
 
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadWorkoutDetail() {
-      if (!selectedWorkoutId) {
-        setSelectedWorkout(null);
-        return;
-      }
-
-      try {
-        setError(null);
-        setLoadingDetail(true);
-        const data = await api.getWorkoutFull(selectedWorkoutId);
-
-        if (isActive) {
-          setSelectedWorkout(data);
-        }
-      } catch {
-        if (isActive) {
-          setSelectedWorkout(null);
-          setError("No se pudo cargar el detalle del workout.");
-        }
-      } finally {
-        if (isActive) {
-          setLoadingDetail(false);
-        }
-      }
-    }
-
-    void loadWorkoutDetail();
-
-    return () => {
-      isActive = false;
-    };
-  }, [selectedWorkoutId]);
-
   return (
     <main className="history-shell">
       <header className="mobile-header">
@@ -131,116 +56,51 @@ export default function HistoryPage() {
 
       {error ? <div className="error-banner">{error}</div> : null}
 
-      <section className="history-layout">
-        <aside className="mobile-card history-list-panel">
-          <div className="panel-header">
-            <div>
-              <h2>Workouts</h2>
-              <p>
-                {loadingList
-                  ? "Cargando workouts"
-                  : `${workouts.length} realizados`}
-              </p>
-            </div>
+      <section className="mobile-card history-list-panel">
+        <div className="panel-header">
+          <div>
+            <h2>Workouts</h2>
+            <p>
+              {loadingList
+                ? "Cargando workouts"
+                : `${workouts.length} realizados`}
+            </p>
           </div>
+        </div>
 
-          <div className="history-list">
-            {workouts.map((workout) => (
-              <button
-                className={`history-item ${
-                  workout.id === selectedWorkoutId ? "selected" : ""
-                }`}
-                key={workout.id}
-                onClick={() => setSelectedWorkoutId(workout.id)}
-                type="button"
-              >
-                <span>Workout #{workout.id}</span>
-                <small>{formatWorkoutDate(workout.date)}</small>
-                <strong>{workout.status}</strong>
-              </button>
-            ))}
-          </div>
-
-          {!loadingList && workouts.length === 0 ? (
-            <div className="empty-state">Aun no hay workouts realizados.</div>
-          ) : null}
-        </aside>
-
-        <section className="history-detail">
-          {loadingDetail ? (
-            <div className="empty-state">Cargando detalle...</div>
-          ) : !selectedWorkout ? (
-            <div className="empty-state">Selecciona un workout.</div>
-          ) : (
-            <>
-              <div className="mobile-card workout-summary history-summary">
-                <div>
-                  <span>{selectedWorkout.status}</span>
-                  <strong>Workout #{selectedWorkout.id}</strong>
-                </div>
-                <div>
-                  <span>Fecha</span>
-                  <strong>
-                    {formatWorkoutDate(selectedSummary?.date ?? selectedWorkout.date)}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="history-stats">
-                <div>
-                  <span>Ejercicios</span>
-                  <strong>{workoutStats.exercises}</strong>
-                </div>
-                <div>
-                  <span>Series</span>
-                  <strong>{workoutStats.sets}</strong>
-                </div>
-                <div>
-                  <span>Completadas</span>
-                  <strong>{workoutStats.completedSets}</strong>
-                </div>
-              </div>
-
-              <section className="workout-stack">
-                {selectedWorkout.exercises.map((exercise) => (
-                  <div className="workout-exercise" key={exercise.id}>
-                    <div className="workout-exercise-header">
-                      <span>{exercise.order_index}</span>
-                      <strong>{exercise.exercise_name}</strong>
-                    </div>
-
-                    <div className="set-table">
-                      <div className="set-row history-set-row set-head">
-                        <span>Set</span>
-                        <span>Reps</span>
-                        <span>Peso</span>
-                        <span>Min:Seg</span>
-                        <span>Done</span>
-                      </div>
-
-                      {exercise.sets.map((set, index) => (
-                        <div
-                          className="set-row history-set-row"
-                          key={set.id}
-                        >
-                          <span>{index + 1}</span>
-                          <span>{formatSetValue(set.reps)}</span>
-                          <span>{formatSetValue(set.weight, " kg")}</span>
-                          <span>
-                            {set.duration_seconds === null
-                              ? "-"
-                              : formatDurationInput(set.duration_seconds)}
-                          </span>
-                          <span>{set.completed ? "Si" : "No"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </section>
-            </>
-          )}
-        </section>
+        {loadingList ? (
+          <div className="empty-state">Cargando historico...</div>
+        ) : workouts.length === 0 ? (
+          <div className="empty-state">Aun no hay workouts realizados.</div>
+        ) : (
+          <table className="history-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              {workouts.map((workout) => (
+                <tr key={workout.id} className="history-row">
+                  <td>{workout.id}</td>
+                  <td>{formatWorkoutDate(workout.date)}</td>
+                  <td>{workout.status}</td>
+                  <td>
+                    <Link
+                      href={`/history/${workout.id}`}
+                      className="history-row-link"
+                    >
+                      Ver detalle
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
     </main>
   );

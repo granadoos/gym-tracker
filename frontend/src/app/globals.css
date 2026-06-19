@@ -668,6 +668,52 @@ select:focus {
   text-transform: uppercase;
 }
 
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.history-table th,
+.history-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.history-table th {
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.history-table tr:last-of-type td {
+  border-bottom: none;
+}
+
+.history-row {
+  transition: background 0.2s ease;
+}
+
+.history-row:hover {
+  background: #f6fbf7;
+}
+
+.history-row-link {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.history-row-link:hover {
+  text-decoration: underline;
+}
+
 .history-detail {
   display: grid;
   gap: 12px;
