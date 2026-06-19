@@ -477,6 +477,9 @@ select:focus {
   font-size: 16px;
   font-weight: 800;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .icon-button:hover {
@@ -713,6 +716,8 @@ select:focus {
 .history-row-link:hover {
   text-decoration: underline;
 }
+
+/* history-action-button and history-delete-button removed; use .icon-button and .icon-button.danger */
 
 .history-detail {
   display: grid;

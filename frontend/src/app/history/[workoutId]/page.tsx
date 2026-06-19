@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { WorkoutFull, api } from "@/lib/api";
 import { formatDurationInput } from "@/lib/formatter";
@@ -19,9 +18,11 @@ function formatSetValue(value: number | null, suffix = "") {
 export default function HistoryDetailPage() {
   const params = useParams<{ workoutId: string }>();
   const workoutId = Number(params.workoutId);
+  const router = useRouter();
   const [workout, setWorkout] = useState<WorkoutFull | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tipo, setTipo] = useState<string>("-");
 
   useEffect(() => {
     let isActive = true;
@@ -53,6 +54,45 @@ export default function HistoryDetailPage() {
     };
   }, [workoutId]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadTipo() {
+      try {
+        const summary = await api.getWorkout(workoutId);
+        if (!isActive) return;
+
+        if (!summary.plan_day_id) {
+          setTipo("-");
+          return;
+        }
+
+        const [planDays, plans] = await Promise.all([
+          api.getPlanDays(),
+          api.getPlans(),
+        ]);
+        if (!isActive) return;
+
+        const planDay = planDays.find((item) => item.id === summary.plan_day_id);
+        const plan = planDay
+          ? plans.find((item) => item.id === planDay.plan_id)
+          : null;
+
+        setTipo(plan?.name ?? "-");
+      } catch {
+        if (isActive) {
+          setTipo("-");
+        }
+      }
+    }
+
+    void loadTipo();
+
+    return () => {
+      isActive = false;
+    };
+  }, [workoutId]);
+
   const workoutStats = useMemo(() => {
     if (!workout) {
       return {
@@ -78,9 +118,37 @@ export default function HistoryDetailPage() {
           <p className="eyebrow">Gym Tracker</p>
           <h1>Detalle workout</h1>
         </div>
-        <Link className="header-link" href="/history">
-          Volver
-        </Link>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            className="icon-button"
+            type="button"
+            onClick={() => router.push("/history")}
+            aria-label="Volver al historico"
+            title="Volver"
+          >
+            👁
+          </button>
+          <button
+            className="icon-button danger"
+            onClick={async () => {
+              const ok = confirm(`Borrar workout #${workoutId}?`);
+              if (!ok) return;
+
+              try {
+                setError(null);
+                await api.deleteWorkout(workoutId);
+                router.push("/history");
+              } catch {
+                setError("No se pudo borrar el workout.");
+              }
+            }}
+            type="button"
+            aria-label={`Borrar workout ${workoutId}`}
+            title="Borrar"
+          >
+            x
+          </button>
+        </div>
       </header>
 
       {error ? <div className="error-banner">{error}</div> : null}
@@ -100,6 +168,10 @@ export default function HistoryDetailPage() {
               <div>
                 <span>Fecha</span>
                 <strong>{formatWorkoutDate(workout.date)}</strong>
+              </div>
+              <div>
+                <span>Planes</span>
+                <strong>{tipo}</strong>
               </div>
             </div>
 

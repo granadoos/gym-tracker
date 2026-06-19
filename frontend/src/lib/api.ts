@@ -176,8 +176,13 @@ export const api = {
       }
     ),
   getWorkouts: () => request<WorkoutSummary[]>("/workouts"),
+  getWorkout: (workoutId: number) => request<WorkoutSummary>(`/workouts/${workoutId}`),
   getWorkoutFull: (workoutId: number) =>
     request<WorkoutFull>(`/workouts/${workoutId}/full`),
+  deleteWorkout: (workoutId: number) =>
+    request<{ message: string }>(`/workouts/${workoutId}`, {
+      method: "DELETE",
+    }),
   finishWorkout: (workoutId: number) =>
     request<{ message: string }>(`/workouts/${workoutId}/finish`, {
       method: "POST",

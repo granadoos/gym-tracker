@@ -317,3 +317,21 @@ def get_workout_full(
         ]
     }
 
+
+@router.delete("/{workout_id}")
+def delete_workout(
+    workout_id: int,
+    db: Session = Depends(get_db)
+):
+    workout = db.query(Workout).filter(Workout.id == workout_id).first()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    # SQLAlchemy relationships are configured with cascade deletes on models,
+    # so deleting the workout will remove related exercises and sets.
+    db.delete(workout)
+    db.commit()
+
+    return {"message": "workout deleted"}
+

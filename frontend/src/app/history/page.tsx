@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { WorkoutSummary, api } from "@/lib/api";
+import { WorkoutSummary, PlanDay, TrainingPlan, api } from "@/lib/api";
 
 function formatWorkoutDate(value: string) {
   return new Date(value).toLocaleString();
@@ -10,6 +10,8 @@ function formatWorkoutDate(value: string) {
 
 export default function HistoryPage() {
   const [workouts, setWorkouts] = useState<WorkoutSummary[]>([]);
+  const [planDays, setPlanDays] = useState<PlanDay[]>([]);
+  const [plans, setPlans] = useState<TrainingPlan[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,11 +21,17 @@ export default function HistoryPage() {
     async function loadWorkouts() {
       try {
         setError(null);
-        const data = await api.getWorkouts();
+        const [workoutData, planDayData, planData] = await Promise.all([
+          api.getWorkouts(),
+          api.getPlanDays(),
+          api.getPlans(),
+        ]);
 
         if (!isActive) return;
 
-        setWorkouts(data);
+        setWorkouts(workoutData);
+        setPlanDays(planDayData);
+        setPlans(planData);
       } catch {
         if (isActive) {
           setError("No se pudo cargar el historico.");
@@ -78,26 +86,58 @@ export default function HistoryPage() {
               <tr>
                 <th>ID</th>
                 <th>Fecha</th>
+                <th>Planes</th>
                 <th>Estado</th>
                 <th>Detalle</th>
               </tr>
             </thead>
             <tbody>
-              {workouts.map((workout) => (
-                <tr key={workout.id} className="history-row">
-                  <td>{workout.id}</td>
-                  <td>{formatWorkoutDate(workout.date)}</td>
-                  <td>{workout.status}</td>
-                  <td>
-                    <Link
-                      href={`/history/${workout.id}`}
-                      className="history-row-link"
-                    >
-                      Ver detalle
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {workouts.map((workout) => {
+                const planDay = workout.plan_day_id
+                  ? planDays.find((day) => day.id === workout.plan_day_id)
+                  : null;
+                const plan = planDay
+                  ? plans.find((item) => item.id === planDay.plan_id)
+                  : null;
+
+                const tipo = plan?.name ?? "-";
+
+                return (
+                  <tr key={workout.id} className="history-row">
+                    <td>{workout.id}</td>
+                    <td>{formatWorkoutDate(workout.date)}</td>
+                    <td>{tipo}</td>
+                    <td>{workout.status}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <Link href={`/history/${workout.id}`}>
+                          <button type="button" className="icon-button" aria-label={`Ver detalle workout ${workout.id}`} title="Ver detalle">
+                            👁
+                          </button>
+                        </Link>
+                        <button
+                          type="button"
+                          className="icon-button danger"
+                          onClick={async () => {
+                            const ok = confirm(`Borrar workout #${workout.id}?`);
+                            if (!ok) return;
+
+                            try {
+                              setError(null);
+                              await api.deleteWorkout(workout.id);
+                              setWorkouts((prev) => prev.filter((w) => w.id !== workout.id));
+                            } catch {
+                              setError("No se pudo borrar el workout.");
+                            }
+                          }}
+                        >
+                          x
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
