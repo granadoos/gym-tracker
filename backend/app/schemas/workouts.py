@@ -38,6 +38,8 @@ class WorkoutFullResponse(BaseModel):
     id: int
     status: str
     date: datetime
+    workout_type: str
+    circuit_rest_seconds: Optional[int] = None
     exercises: list[WorkoutExerciseFullResponse]
 
     class Config:

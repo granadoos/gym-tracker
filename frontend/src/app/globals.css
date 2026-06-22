@@ -180,6 +180,11 @@ select:focus {
   grid-template-columns: 1fr;
 }
 
+.workout-type-settings {
+  display: grid;
+  gap: 10px;
+}
+
 .day-picker {
   display: grid;
   gap: 10px;

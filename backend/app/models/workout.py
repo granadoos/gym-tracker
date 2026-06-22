@@ -15,6 +15,10 @@ class Workout(Base):
 
     status = Column(String, default="in_progress")  # in_progress | completed
 
+    workout_type = Column(String, default="normal")  # normal | circuit
+
+    circuit_rest_seconds = Column(Integer, default=90)
+
     exercises = relationship("WorkoutExercise", back_populates="workout", cascade="all, delete-orphan")
 
 

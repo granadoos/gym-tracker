@@ -252,6 +252,35 @@ export default function ConfigurationBuilder({
     }
   }
 
+  async function handleUpdateDayWorkoutType(
+    workoutType: "normal" | "circuit",
+    circuitRestSeconds = selectedDay?.circuit_rest_seconds ?? 90
+  ) {
+    if (!selectedDayId) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const updated = await api.updatePlanDayWorkoutType(
+        selectedDayId,
+        workoutType,
+        circuitRestSeconds
+      );
+      setPlanDays((current) =>
+        current.map((day) => (day.id === selectedDayId ? updated : day))
+      );
+    } catch {
+      setError("No se pudo actualizar el tipo de entrenamiento.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleUpdateCircuitRestSeconds(seconds: number | null) {
+    await handleUpdateDayWorkoutType("circuit", seconds ?? 0);
+  }
+
   async function handleAddExerciseToDay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedDayId || !exerciseId) return;
@@ -501,6 +530,47 @@ export default function ConfigurationBuilder({
                 );
               })}
             </select>
+          </div>
+          </section>
+
+          <section className="mobile-card">
+          <div className="panel-header">
+            <div>
+              <h2>Tipo de entrenamiento</h2>
+              <p>
+                {selectedDay?.workout_type === "circuit"
+                  ? "Los ejercicios del dia se haran en circuito"
+                  : "Los ejercicios del dia se haran por series normales"}
+              </p>
+            </div>
+          </div>
+
+          <div className="workout-type-settings">
+            <div className="flex flex-col gap-1">
+              <label>Modo</label>
+              <select
+                disabled={!selectedDayId || saving}
+                value={selectedDay?.workout_type ?? "normal"}
+                onChange={(event) =>
+                  handleUpdateDayWorkoutType(
+                    event.target.value === "circuit" ? "circuit" : "normal"
+                  )
+                }
+              >
+                <option value="normal">Series normales</option>
+                <option value="circuit">Circuito</option>
+              </select>
+            </div>
+
+            {selectedDay?.workout_type === "circuit" ? (
+              <div className="flex flex-col gap-1">
+                <label>Descanso entre circuitos</label>
+                <DurationInput
+                  value={selectedDay.circuit_rest_seconds ?? 90}
+                  onChange={handleUpdateCircuitRestSeconds}
+                />
+              </div>
+            ) : null}
           </div>
           </section>
 

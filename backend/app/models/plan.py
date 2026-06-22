@@ -23,6 +23,10 @@ class PlanDay(Base):
     
     day_of_week = Column(Integer)  # 0-6
 
+    workout_type = Column(String, default="normal")  # normal | circuit
+
+    circuit_rest_seconds = Column(Integer, default=90)
+
     plan = relationship("TrainingPlan", back_populates="days")
     
     exercises = relationship("PlanExercise", back_populates="day", cascade="all, delete-orphan")

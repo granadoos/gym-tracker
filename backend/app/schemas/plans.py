@@ -13,6 +13,11 @@ class PlanDayPlanUpdate(BaseModel):
     plan_id: Optional[int] = None
 
 
+class PlanDayWorkoutTypeUpdate(BaseModel):
+    workout_type: str
+    circuit_rest_seconds: Optional[int] = None
+
+
 class PlanExerciseCreate(BaseModel):
     exercise_id: int
     order_index: int
@@ -28,4 +33,3 @@ class PlanExerciseUpdate(BaseModel):
     default_reps: Optional[int] = None
     default_weight: Optional[float] = None
     default_time_seconds: Optional[int] = None
-

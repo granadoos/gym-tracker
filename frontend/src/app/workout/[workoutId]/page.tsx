@@ -17,17 +17,37 @@ type SetTimer = {
   remainingSeconds: number;
 };
 
-type WorkoutStep = {
+type RestTimer = {
+  isRunning: boolean;
+  remainingSeconds: number;
+  done: boolean;
+};
+
+type ExerciseWorkoutStep = {
+  type: "exercise";
   exercise: WorkoutExerciseFull;
   exerciseIndex: number;
   set: WorkoutSet;
   setIndex: number;
+  roundIndex: number | null;
+  totalRounds: number | null;
 };
 
+type RestWorkoutStep = {
+  type: "rest";
+  roundIndex: number;
+  totalRounds: number;
+  seconds: number;
+};
+
+type WorkoutStep = ExerciseWorkoutStep | RestWorkoutStep;
+
 type WorkoutStepGroup = {
-  exercise: WorkoutExerciseFull;
-  exerciseIndex: number;
-  steps: Array<WorkoutStep & { globalIndex: number }>;
+  key: string;
+  label: string;
+  firstIndex: number;
+  isDone: boolean;
+  isActive: boolean;
 };
 
 function formatTimer(seconds: number) {
@@ -112,7 +132,7 @@ function ringBell() {
     firstChange,
     secondChange
   );
-  const blob = new Blob([samples], { type: 'audio/wav' });
+  const blob = new Blob([samples.buffer as ArrayBuffer], { type: 'audio/wav' });
   const url = URL.createObjectURL(blob);
   
   audioElement.src = url;
@@ -222,54 +242,134 @@ export default function WorkoutPage() {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [timers, setTimers] = useState<Record<number, SetTimer>>({});
+  const [restTimers, setRestTimers] = useState<Record<number, RestTimer>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const timerIntervals = useRef<Record<number, number>>({});
+  const restTimerIntervals = useRef<Record<number, number>>({});
 
   const workoutSteps = useMemo<WorkoutStep[]>(() => {
     if (!workout) return [];
 
-    return workout.exercises.flatMap((exercise, exerciseIndex) =>
-      exercise.sets.map((set, setIndex) => ({
-        exercise,
-        exerciseIndex,
-        set,
-        setIndex,
-      }))
-    );
-  }, [workout]);
-
-  const workoutStepGroups = useMemo<WorkoutStepGroup[]>(() => {
-    if (!workout) return [];
-
-    let globalIndex = 0;
-
-    return workout.exercises.map((exercise, exerciseIndex) => {
-      const steps = exercise.sets.map((set, setIndex) => {
-        const step = {
+    if (workout.workout_type !== "circuit") {
+      return workout.exercises.flatMap((exercise, exerciseIndex) =>
+        exercise.sets.map((set, setIndex) => ({
+          type: "exercise",
           exercise,
           exerciseIndex,
           set,
           setIndex,
-          globalIndex,
-        } as WorkoutStep & { globalIndex: number };
+          roundIndex: null,
+          totalRounds: null,
+        }))
+      );
+    }
 
-        globalIndex += 1;
-        return step;
+    const steps: WorkoutStep[] = [];
+    const totalRounds = Math.max(
+      0,
+      ...workout.exercises.map((exercise) => exercise.sets.length)
+    );
+    const restSeconds = workout.circuit_rest_seconds ?? 0;
+
+    for (let roundIndex = 0; roundIndex < totalRounds; roundIndex += 1) {
+      workout.exercises.forEach((exercise, exerciseIndex) => {
+        const set = exercise.sets[roundIndex];
+
+        if (!set) return;
+
+        steps.push({
+          type: "exercise",
+          exercise,
+          exerciseIndex,
+          set,
+          setIndex: roundIndex,
+          roundIndex,
+          totalRounds,
+        });
       });
 
-      return {
-        exercise,
-        exerciseIndex,
-        steps,
-      };
-    });
+      if (restSeconds > 0 && roundIndex < totalRounds - 1) {
+        steps.push({
+          type: "rest",
+          roundIndex,
+          totalRounds,
+          seconds: restSeconds,
+        });
+      }
+    }
+
+    return steps;
   }, [workout]);
 
   const activeStep = workoutSteps[activeStepIndex] ?? null;
-  const activeExercise = activeStep?.exercise ?? null;
-  const activeSet = activeStep?.set ?? null;
+
+  const workoutStepGroups = useMemo<WorkoutStepGroup[]>(() => {
+    if (!workout) return [];
+
+    if (workout.workout_type === "circuit") {
+      const totalRounds = Math.max(
+        0,
+        ...workout.exercises.map((exercise) => exercise.sets.length)
+      );
+
+      return Array.from({ length: totalRounds }, (_, roundIndex) => {
+        const firstIndex = workoutSteps.findIndex(
+          (step) => step.roundIndex === roundIndex
+        );
+        const isDone = workout.exercises.every((exercise) => {
+          const set = exercise.sets[roundIndex];
+
+          return !set || set.completed;
+        });
+        const isActive =
+          activeStep?.type === "exercise"
+            ? activeStep.roundIndex === roundIndex
+            : activeStep?.type === "rest" &&
+              activeStep.roundIndex === roundIndex;
+
+        return {
+          key: `round-${roundIndex}`,
+          label: `Ronda ${roundIndex + 1}`,
+          firstIndex: firstIndex === -1 ? 0 : firstIndex,
+          isDone,
+          isActive,
+        };
+      });
+    }
+
+    return workout.exercises.map((exercise, exerciseIndex) => {
+      const firstIndex = workoutSteps.findIndex(
+        (step) =>
+          step.type === "exercise" && step.exerciseIndex === exerciseIndex
+      );
+
+      return {
+        key: `exercise-${exercise.id}`,
+        label: exercise.exercise_name,
+        firstIndex: firstIndex === -1 ? 0 : firstIndex,
+        isDone:
+          exercise.sets.length > 0 &&
+          exercise.sets.every((set) => set.completed),
+        isActive:
+          activeStep?.type === "exercise" &&
+          activeStep.exerciseIndex === exerciseIndex,
+      };
+    });
+  }, [activeStep, workout, workoutSteps]);
+
+  const activeExercise =
+    activeStep?.type === "exercise" ? activeStep.exercise : null;
+  const activeSet = activeStep?.type === "exercise" ? activeStep.set : null;
+  const activeRestTimer =
+    activeStep?.type === "rest"
+      ? restTimers[activeStepIndex] ?? {
+          isRunning: false,
+          remainingSeconds: activeStep.seconds,
+          done: false,
+        }
+      : null;
   const activeTimer = activeSet
     ? timers[activeSet.id] ?? {
         phase: "idle" as const,
@@ -336,9 +436,13 @@ export default function WorkoutPage() {
 
   useEffect(() => {
     const intervals = timerIntervals.current;
+    const restIntervals = restTimerIntervals.current;
 
     return () => {
       Object.values(intervals).forEach((intervalId) => {
+        window.clearInterval(intervalId);
+      });
+      Object.values(restIntervals).forEach((intervalId) => {
         window.clearInterval(intervalId);
       });
     };
@@ -540,6 +644,86 @@ export default function WorkoutPage() {
     void completeActiveSet(set);
   }
 
+  function completeRestStep(stepIndex: number) {
+    window.clearInterval(restTimerIntervals.current[stepIndex]);
+    delete restTimerIntervals.current[stepIndex];
+
+    setRestTimers((current) => ({
+      ...current,
+      [stepIndex]: {
+        isRunning: false,
+        remainingSeconds: 0,
+        done: true,
+      },
+    }));
+
+    ringBell();
+    setActiveStepIndex((current) =>
+      Math.min(current + 1, Math.max(workoutSteps.length - 1, 0))
+    );
+  }
+
+  function startRestTimer(stepIndex: number, totalSeconds: number) {
+    if (totalSeconds <= 0) {
+      completeRestStep(stepIndex);
+      return;
+    }
+
+    initAudioContext();
+
+    const currentTimer = restTimers[stepIndex];
+    let remainingSeconds =
+      currentTimer && !currentTimer.done
+        ? currentTimer.remainingSeconds
+        : totalSeconds;
+
+    setRestTimers((current) => ({
+      ...current,
+      [stepIndex]: {
+        isRunning: true,
+        remainingSeconds,
+        done: false,
+      },
+    }));
+
+    window.clearInterval(restTimerIntervals.current[stepIndex]);
+    restTimerIntervals.current[stepIndex] = window.setInterval(() => {
+      remainingSeconds -= 1;
+
+      if (remainingSeconds <= 0) {
+        completeRestStep(stepIndex);
+        return;
+      }
+
+      setRestTimers((current) => ({
+        ...current,
+        [stepIndex]: {
+          isRunning: true,
+          remainingSeconds,
+          done: false,
+        },
+      }));
+    }, 1000);
+  }
+
+  function pauseRestTimer(stepIndex: number) {
+    window.clearInterval(restTimerIntervals.current[stepIndex]);
+    delete restTimerIntervals.current[stepIndex];
+
+    setRestTimers((current) => {
+      const currentTimer = current[stepIndex];
+      if (!currentTimer) return current;
+
+      return {
+        ...current,
+        [stepIndex]: {
+          ...currentTimer,
+          isRunning: false,
+        },
+      };
+    });
+  }
+
   async function finishWorkout() {
     if (!workout) return;
 
@@ -562,11 +746,25 @@ export default function WorkoutPage() {
   }
 
   function goToNextStep() {
-    if (!activeSet?.completed) return;
+    if (!isActiveStepComplete()) return;
 
     setActiveStepIndex((current) =>
       Math.min(current + 1, workoutSteps.length - 1)
     );
+  }
+
+  function isStepDone(step: WorkoutStep, index: number) {
+    if (step.type === "exercise") {
+      return step.set.completed;
+    }
+
+    return restTimers[index]?.done ?? false;
+  }
+
+  function isActiveStepComplete() {
+    if (!activeStep) return false;
+
+    return isStepDone(activeStep, activeStepIndex);
   }
 
   function selectStep(index: number) {
@@ -576,8 +774,8 @@ export default function WorkoutPage() {
 
     if (
       index <= activeStepIndex ||
-      nextStep.set.completed ||
-      activeSet?.completed
+      isStepDone(nextStep, index) ||
+      isActiveStepComplete()
     ) {
       setActiveStepIndex(index);
     }
@@ -613,26 +811,34 @@ export default function WorkoutPage() {
           <section className="mobile-card workout-step-progress">
             <div className="workout-step-summary">
               <span>
-                Ejercicio {activeExercise?.order_index ?? 0} de {workout.exercises.length}
+                {workout.workout_type === "circuit" && activeStep
+                  ? activeStep.type === "rest"
+                    ? `Descanso ronda ${activeStep.roundIndex + 1}`
+                    : `Ronda ${
+                        activeStep.roundIndex !== null
+                          ? activeStep.roundIndex + 1
+                          : 1
+                      } de ${activeStep.totalRounds ?? 1}`
+                  : `Ejercicio ${activeExercise?.order_index ?? 0} de ${
+                      workout.exercises.length
+                    }`}
               </span>
             </div>
             <div className="workout-step-dots">
               {workoutStepGroups.map((group) => {
-                const isDone = group.steps.every((s) => s.set.completed);
-                const firstIndex = group.steps[0]?.globalIndex ?? 0;
-                const isActive = activeStep?.exerciseIndex === group.exerciseIndex;
-
                 return (
                   <button
-                    aria-label={`Ir al ejercicio ${group.exercise.order_index}`}
-                    className={`${isActive ? "active" : ""} ${isDone ? "done" : ""}`}
+                    aria-label={`Ir a ${group.label}`}
+                    className={`${group.isActive ? "active" : ""} ${
+                      group.isDone ? "done" : ""
+                    }`}
                     disabled={
-                      firstIndex > activeStepIndex &&
-                      !isDone &&
-                      !activeSet?.completed
+                      group.firstIndex > activeStepIndex &&
+                      !group.isDone &&
+                      !isActiveStepComplete()
                     }
-                    key={group.exercise.id}
-                    onClick={() => selectStep(firstIndex)}
+                    key={group.key}
+                    onClick={() => selectStep(group.firstIndex)}
                     type="button"
                   />
                 );
@@ -640,7 +846,7 @@ export default function WorkoutPage() {
             </div>
           </section>
 
-          {activeExercise && activeStep && activeSet && activeTimer ? (
+          {activeExercise && activeStep?.type === "exercise" && activeSet && activeTimer ? (
             <section className="workout-step-card active-set-card">
               <div className="workout-exercise">
                 <div className="workout-exercise-header">
@@ -813,7 +1019,79 @@ export default function WorkoutPage() {
             </section>
           ) : null}
 
-          {activeExercise && !activeExerciseCompleted ? (
+          {activeStep?.type === "rest" && activeRestTimer ? (
+            <section className="workout-step-card active-set-card">
+              <div className="workout-exercise">
+                <div className="workout-exercise-header">
+                  <span>{activeStep.roundIndex + 1}</span>
+                  <strong>Descanso entre circuitos</strong>
+                </div>
+
+                <div className="active-set-body timer-work">
+                  <div className="active-set-progress">
+                    <span>
+                      Ronda {activeStep.roundIndex + 1} de{" "}
+                      {activeStep.totalRounds}
+                    </span>
+                  </div>
+
+                  <div className="big-timer-card">
+                    <div className="big-timer-display">
+                      {activeRestTimer.done
+                        ? "Completado"
+                        : formatTimer(activeRestTimer.remainingSeconds)}
+                    </div>
+                    <div className="big-timer-actions">
+                      <button
+                        aria-label="Iniciar descanso"
+                        disabled={
+                          workout.status === "completed" ||
+                          saving ||
+                          activeRestTimer.isRunning ||
+                          activeRestTimer.done
+                        }
+                        onClick={() =>
+                          startRestTimer(activeStepIndex, activeStep.seconds)
+                        }
+                        title="Iniciar"
+                        type="button"
+                      >
+                        ▶
+                      </button>
+                      <button
+                        aria-label="Pausar descanso"
+                        disabled={
+                          workout.status === "completed" ||
+                          saving ||
+                          !activeRestTimer.isRunning
+                        }
+                        onClick={() => pauseRestTimer(activeStepIndex)}
+                        title="Pausar"
+                        type="button"
+                      >
+                        ||
+                      </button>
+                      <button
+                        aria-label="Terminar descanso"
+                        disabled={
+                          workout.status === "completed" ||
+                          saving ||
+                          activeRestTimer.done
+                        }
+                        onClick={() => completeRestStep(activeStepIndex)}
+                        title="Terminar"
+                        type="button"
+                      >
+                        ✓
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {activeStep?.type === "exercise" && activeExercise && !activeSet?.completed ? (
             <p className="workout-step-hint">Completa esta serie para avanzar.</p>
           ) : null}
 
@@ -831,7 +1109,9 @@ export default function WorkoutPage() {
               <button
                 className="primary-action"
                 disabled={
-                  workout.status === "completed" || saving || !activeSet?.completed
+                  workout.status === "completed" ||
+                  saving ||
+                  !isActiveStepComplete()
                 }
                 onClick={finishWorkout}
                 type="button"
@@ -841,7 +1121,7 @@ export default function WorkoutPage() {
             ) : (
               <button
                 className="primary-action"
-                disabled={saving || !activeSet?.completed}
+                disabled={saving || !isActiveStepComplete()}
                 onClick={goToNextStep}
                 type="button"
               >

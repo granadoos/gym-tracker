@@ -29,3 +29,5 @@ Thumbs.db
 data/postgres
 
 docker-compose.yml
+frontend/dockerfile
+frontend/package.json

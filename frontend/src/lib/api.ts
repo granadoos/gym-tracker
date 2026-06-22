@@ -32,6 +32,8 @@ export type PlanDay = {
   id: number;
   plan_id: number | null;
   day_of_week: number;
+  workout_type: "normal" | "circuit";
+  circuit_rest_seconds: number | null;
 };
 
 export type PlanExercise = {
@@ -68,6 +70,8 @@ export type WorkoutFull = {
   id: number;
   status: "in_progress" | "completed";
   date: string;
+  workout_type: "normal" | "circuit";
+  circuit_rest_seconds: number | null;
   exercises: WorkoutExerciseFull[];
 };
 
@@ -144,6 +148,18 @@ export const api = {
     request<PlanDay>(`/plans/days/${planDayId}/plan`, {
       method: "PATCH",
       body: JSON.stringify({ plan_id: planId }),
+    }),
+  updatePlanDayWorkoutType: (
+    planDayId: number,
+    workoutType: "normal" | "circuit",
+    circuitRestSeconds: number | null
+  ) =>
+    request<PlanDay>(`/plans/days/${planDayId}/workout-type`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        workout_type: workoutType,
+        circuit_rest_seconds: circuitRestSeconds,
+      }),
     }),
 
   getPlanExercises: (planDayId: number) =>

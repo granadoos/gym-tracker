@@ -3,9 +3,16 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.database.database import SessionLocal
-from app.models.plan import TrainingPlan,PlanDay, PlanExercise
+from app.models.plan import TrainingPlan, PlanDay, PlanExercise
 from app.models.exercise import Exercise
-from app.schemas.plans import PlanCreate, PlanDayCreate, PlanDayPlanUpdate, PlanExerciseCreate, PlanExerciseUpdate
+from app.schemas.plans import (
+    PlanCreate,
+    PlanDayCreate,
+    PlanDayPlanUpdate,
+    PlanDayWorkoutTypeUpdate,
+    PlanExerciseCreate,
+    PlanExerciseUpdate,
+)
 
 router = APIRouter(
     prefix="/plans",
@@ -170,6 +177,42 @@ def update_plan_day_plan(
     return plan_day
 
 
+@router.patch("/days/{plan_day_id}/workout-type")
+def update_plan_day_workout_type(
+    plan_day_id: int,
+    workout_type_update: PlanDayWorkoutTypeUpdate,
+    db: Session = Depends(get_db)
+):
+    plan_day = db.query(PlanDay).filter(
+        PlanDay.id == plan_day_id
+    ).first()
+
+    if not plan_day:
+        raise HTTPException(
+            status_code=404,
+            detail="Plan day not found"
+        )
+
+    if workout_type_update.workout_type not in ("normal", "circuit"):
+        raise HTTPException(
+            status_code=400,
+            detail="workout_type must be normal or circuit"
+        )
+
+    plan_day.workout_type = workout_type_update.workout_type
+
+    if workout_type_update.circuit_rest_seconds is not None:
+        plan_day.circuit_rest_seconds = workout_type_update.circuit_rest_seconds
+
+    if plan_day.circuit_rest_seconds is None:
+        plan_day.circuit_rest_seconds = 90
+
+    db.commit()
+    db.refresh(plan_day)
+
+    return plan_day
+
+
 
 
 @router.post("/days/{plan_day_id}/exercises")
@@ -234,7 +277,12 @@ def get_plan_day_exercises(
             "default_weight": plan_exercise.default_weight,
             "default_time_seconds": plan_exercise.default_time_seconds,
         }
-        for plan_exercise, exercise_name, day_of_week, training_plan_name in rows
+        for (
+            plan_exercise,
+            exercise_name,
+            day_of_week,
+            training_plan_name
+        ) in rows
     ]
 
 
@@ -319,4 +367,3 @@ def touch_plan_exercise(
     db.refresh(plan_exercise)
 
     return plan_exercise
-

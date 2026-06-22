@@ -99,7 +99,9 @@ def start_workout(
     # Crear workout
     workout = Workout(
         plan_day_id=plan_day.id,
-        status="in_progress"
+        status="in_progress",
+        workout_type=plan_day.workout_type or "normal",
+        circuit_rest_seconds=plan_day.circuit_rest_seconds or 90
     )
 
     db.add(workout)
@@ -109,7 +111,10 @@ def start_workout(
     # Obtener ejercicios del plan
     plan_exercises = db.query(PlanExercise).filter(
         PlanExercise.plan_day_id == plan_day.id
-    ).order_by(PlanExercise.order_index).all()
+    ).order_by(
+        PlanExercise.order_index,
+        PlanExercise.id
+    ).all()
 
     latest_exercises_data = get_latest_sets_by_exercise(
         db=db,
@@ -121,7 +126,6 @@ def start_workout(
     )
 
     for plan_exercise in plan_exercises:
-
         # Crear workout exercise
         workout_exercise = WorkoutExercise(
             workout_id=workout.id,
@@ -296,7 +300,12 @@ def get_workout_full(
             detail="Workout not found"
         )
 
-    workout.exercises.sort(key=lambda workout_exercise: workout_exercise.order_index or 0)
+    workout.exercises.sort(
+        key=lambda workout_exercise: (
+            workout_exercise.order_index or 0,
+            workout_exercise.id
+        )
+    )
 
     for workout_exercise in workout.exercises:
         workout_exercise.sets.sort(key=lambda set_item: set_item.id)
@@ -305,6 +314,8 @@ def get_workout_full(
         "id": workout.id,
         "status": workout.status,
         "date": workout.date,
+        "workout_type": workout.workout_type or "normal",
+        "circuit_rest_seconds": workout.circuit_rest_seconds,
         "exercises": [
             {
                 "id": workout_exercise.id,
