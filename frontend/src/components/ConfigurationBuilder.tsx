@@ -383,7 +383,7 @@ export default function ConfigurationBuilder({
           <h1>{pageTitle}</h1>
         </div>
         <Link className="header-link" href="/configuration">
-          Configuracion
+          ⬅
         </Link>
       </header>
 

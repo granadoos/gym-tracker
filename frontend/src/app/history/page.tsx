@@ -58,7 +58,7 @@ export default function HistoryPage() {
           <h1>Historico</h1>
         </div>
         <Link className="header-link" href="/">
-          Inicio
+          ⬅
         </Link>
       </header>
 

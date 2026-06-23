@@ -101,9 +101,6 @@ export default function Home() {
           <p className="eyebrow">Gym Tracker</p>
           <h1>Entrenar. Hoy puedes!. </h1>
         </div>
-        <Link className="header-link" href="/configuration">
-          Configuracion
-        </Link>
       </header>
 
       {error ? <div className="error-banner">{error}</div> : null}

@@ -126,7 +126,7 @@ export default function HistoryDetailPage() {
             aria-label="Volver al historico"
             title="Volver"
           >
-            👁
+            ⬅
           </button>
           <button
             className="icon-button danger"

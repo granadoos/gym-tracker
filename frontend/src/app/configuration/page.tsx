@@ -9,7 +9,7 @@ export default function ConfigurationPage() {
           <h1>Configuracion</h1>
         </div>
         <Link className="header-link" href="/">
-          Inicio
+          ⬅
         </Link>
       </header>
 
