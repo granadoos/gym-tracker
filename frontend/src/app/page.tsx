@@ -15,6 +15,33 @@ const weekDays = [
   "Domingo",
 ];
 
+const inspirationalPhrases = [
+  "Entrenar hoy es invertir en tu energia de manana.",
+  "Un poco mejor que ayer ya cuenta.",
+  "Empieza fuerte, termina orgulloso.",
+  "La constancia gana cuando la motivacion baja.",
+  "Tu cuerpo escucha cada decision que tomas.",
+  "Hoy toca sumar una victoria pequena.",
+  "No necesitas ganas, necesitas empezar.",
+  "Cada repeticion te acerca a tu version mas fuerte.",
+  "Hazlo simple, hazlo bien, hazlo hoy.",
+  "El progreso se construye en dias como este.",
+  "Entrena por la persona que estas construyendo.",
+  "Hoy puedes mas de lo que crees.",
+  "La disciplina tambien se entrena.",
+  "No rompas la cadena: mueve el cuerpo.",
+];
+
+function getDailyPhrase() {
+  const today = new Date();
+  const startOfYear = new Date(today.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor(
+    (today.getTime() - startOfYear.getTime()) / 86_400_000
+  );
+
+  return inspirationalPhrases[dayOfYear % inspirationalPhrases.length];
+}
+
 export default function Home() {
   const router = useRouter();
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
@@ -43,6 +70,7 @@ export default function Home() {
 
   const selectedDay = planDays.find((day) => day.id === selectedDayId);
   const selectedPlan = plans.find((plan) => plan.id === selectedDay?.plan_id);
+  const dailyPhrase = useMemo(() => getDailyPhrase(), []);
 
   useEffect(() => {
     let isActive = true;
@@ -99,7 +127,7 @@ export default function Home() {
       <header className="mobile-header">
         <div>
           <p className="eyebrow">Gym Tracker</p>
-          <h1>Entrenar. Hoy puedes!. </h1>
+          <h1>{dailyPhrase}</h1>
         </div>
       </header>
 
