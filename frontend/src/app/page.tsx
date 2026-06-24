@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { PlanDay, TrainingPlan, api } from "@/lib/api";
+import { inspirationalPhrases } from "@/lib/inspirationalPhrases";
 
 const weekDays = [
   "Lunes",
@@ -15,22 +16,6 @@ const weekDays = [
   "Domingo",
 ];
 
-const inspirationalPhrases = [
-  "Entrenar hoy es invertir en tu energia de manana.",
-  "Un poco mejor que ayer ya cuenta.",
-  "Empieza fuerte, termina orgulloso.",
-  "La constancia gana cuando la motivacion baja.",
-  "Tu cuerpo escucha cada decision que tomas.",
-  "Hoy toca sumar una victoria pequena.",
-  "No necesitas ganas, necesitas empezar.",
-  "Cada repeticion te acerca a tu version mas fuerte.",
-  "Hazlo simple, hazlo bien, hazlo hoy.",
-  "El progreso se construye en dias como este.",
-  "Entrena por la persona que estas construyendo.",
-  "Hoy puedes mas de lo que crees.",
-  "La disciplina tambien se entrena.",
-  "No rompas la cadena: mueve el cuerpo.",
-];
 
 function getDailyPhrase() {
   const today = new Date();
