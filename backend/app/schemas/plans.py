@@ -33,3 +33,7 @@ class PlanExerciseUpdate(BaseModel):
     default_reps: Optional[int] = None
     default_weight: Optional[float] = None
     default_time_seconds: Optional[int] = None
+
+
+class PlanExerciseBatchDefaultSetsUpdate(BaseModel):
+    default_sets: int

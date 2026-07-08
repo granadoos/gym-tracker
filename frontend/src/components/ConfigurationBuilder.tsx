@@ -45,6 +45,7 @@ export default function ConfigurationBuilder({
   const [planName, setPlanName] = useState("");
   const [exerciseId, setExerciseId] = useState<number | null>(null);
   const [defaultSets, setDefaultSets] = useState(3);
+  const [circuitDefaultSets, setCircuitDefaultSets] = useState(3);
   const [defaultReps, setDefaultReps] = useState<number | "">(10);
   const [defaultWeight, setDefaultWeight] = useState<number | "">("");
   const [defaultTimeSeconds, setDefaultTimeSeconds] =  useState<number | null>(null);
@@ -149,6 +150,27 @@ export default function ConfigurationBuilder({
       isActive = false;
     };
   }, [selectedDayId]);
+
+  useEffect(() => {
+    if (!selectedDayId) {
+      setCircuitDefaultSets(3);
+      return;
+    }
+
+    if (planExercises.length > 0) {
+      const suggestedSets = planExercises[0]?.default_sets ?? 3;
+      setCircuitDefaultSets(suggestedSets);
+
+      if (selectedDay?.workout_type === "circuit") {
+        setDefaultSets(suggestedSets);
+      }
+      return;
+    }
+
+    if (selectedDay?.workout_type === "circuit") {
+      setDefaultSets(circuitDefaultSets);
+    }
+  }, [planExercises, selectedDay?.workout_type, selectedDayId]);
 
   function selectDay(day: PlanDay) {
     setSelectedDayId(day.id);
@@ -270,8 +292,36 @@ export default function ConfigurationBuilder({
       setPlanDays((current) =>
         current.map((day) => (day.id === selectedDayId ? updated : day))
       );
+
+      if (workoutType === "circuit") {
+        await api.updatePlanDayExercisesDefaultSets(
+          selectedDayId,
+          Math.max(1, circuitDefaultSets)
+        );
+        await loadPlanExercises(selectedDayId);
+      }
     } catch {
       setError("No se pudo actualizar el tipo de entrenamiento.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleUpdateCircuitDefaultSets(sets: number | null) {
+    const nextSets = Math.max(1, sets ?? 1);
+    setCircuitDefaultSets(nextSets);
+    setDefaultSets(nextSets);
+
+    if (!selectedDayId || selectedDay?.workout_type !== "circuit") return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      await api.updatePlanDayExercisesDefaultSets(selectedDayId, nextSets);
+      await loadPlanExercises(selectedDayId);
+    } catch {
+      setError("No se pudo actualizar el numero de series del circuito.");
     } finally {
       setSaving(false);
     }
@@ -289,10 +339,15 @@ export default function ConfigurationBuilder({
     setError(null);
 
     try {
+      const setsToUse =
+        selectedDay?.workout_type === "circuit"
+          ? Math.max(1, circuitDefaultSets)
+          : defaultSets;
+
       await api.createPlanExercise(selectedDayId, {
         exercise_id: exerciseId,
         order_index: planExercises.length + 1,
-        default_sets: defaultSets,
+        default_sets: setsToUse,
         default_reps: defaultReps === "" ? null : defaultReps,
         default_weight: defaultWeight === "" ? null : defaultWeight,
         default_time_seconds: defaultTimeSeconds,
@@ -563,13 +618,28 @@ export default function ConfigurationBuilder({
             </div>
 
             {selectedDay?.workout_type === "circuit" ? (
-              <div className="flex flex-col gap-1">
-                <label>Descanso entre circuitos</label>
-                <DurationInput
-                  value={selectedDay.circuit_rest_seconds ?? 90}
-                  onChange={handleUpdateCircuitRestSeconds}
-                />
-              </div>
+              <>
+                <div className="flex flex-col gap-1">
+                  <label>Series</label>
+                  <input
+                    min={1}
+                    type="number"
+                    value={circuitDefaultSets}
+                    onChange={(event) =>
+                      handleUpdateCircuitDefaultSets(
+                        Number(event.target.value)
+                      )
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label>Descanso entre circuitos</label>
+                  <DurationInput
+                    value={selectedDay.circuit_rest_seconds ?? 90}
+                    onChange={handleUpdateCircuitRestSeconds}
+                  />
+                </div>
+              </>
             ) : null}
           </div>
           </section>
@@ -597,15 +667,17 @@ export default function ConfigurationBuilder({
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
-              <label>Series</label>  
-              <input
-                min={1}
-                type="number"
-                value={defaultSets}
-                onChange={(event) => setDefaultSets(Number(event.target.value))}
-              />
-            </div>
+            {selectedDay?.workout_type === "circuit" ? null : (
+              <div className="flex flex-col gap-1">
+                <label>Series</label>
+                <input
+                  min={1}
+                  type="number"
+                  value={defaultSets}
+                  onChange={(event) => setDefaultSets(Number(event.target.value))}
+                />
+              </div>
+            )}
             <div className="flex flex-col gap-1">
               <label>Repeticiones</label>
               <input
@@ -613,19 +685,26 @@ export default function ConfigurationBuilder({
                 placeholder="Reps"
                 type="number"
                 value={defaultReps}
-                onChange={(event) =>
-                  setDefaultReps(
-                    event.target.value === "" ? "" : Number(event.target.value)
-                  )
-                }
+                onChange={(event) => {
+                  const val = event.target.value === "" ? "" : Number(event.target.value);
+                  setDefaultReps(val);
+                  if (val !== "") {
+                    setDefaultTimeSeconds(null);
+                  }
+                }}
               />
             </div>
             <div className="flex flex-col gap-1">
               <label>Duración</label>
               <DurationInput
-                  value={defaultTimeSeconds}
-                  onChange={setDefaultTimeSeconds}
-                />
+                value={defaultTimeSeconds}
+                onChange={(value) => {
+                  setDefaultTimeSeconds(value);
+                  if (value !== null) {
+                    setDefaultReps("");
+                  }
+                }}
+              />
             </div>
             <div className="flex flex-col gap-1">
               <label>Peso</label>

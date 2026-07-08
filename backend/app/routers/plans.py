@@ -10,6 +10,7 @@ from app.schemas.plans import (
     PlanDayCreate,
     PlanDayPlanUpdate,
     PlanDayWorkoutTypeUpdate,
+    PlanExerciseBatchDefaultSetsUpdate,
     PlanExerciseCreate,
     PlanExerciseUpdate,
 )
@@ -236,6 +237,34 @@ def add_exercise_to_day(
     db.refresh(exercise)
 
     return exercise
+
+
+@router.patch("/days/{plan_day_id}/exercises/bulk-default-sets")
+def update_plan_day_exercises_default_sets(
+    plan_day_id: int,
+    plan_exercise_update: PlanExerciseBatchDefaultSetsUpdate,
+    db: Session = Depends(get_db)
+):
+    plan_day = db.query(PlanDay).filter(
+        PlanDay.id == plan_day_id
+    ).first()
+
+    if not plan_day:
+        raise HTTPException(
+            status_code=404,
+            detail="Plan day not found"
+        )
+
+    plan_exercises = db.query(PlanExercise).filter(
+        PlanExercise.plan_day_id == plan_day_id
+    ).all()
+
+    for plan_exercise in plan_exercises:
+        plan_exercise.default_sets = plan_exercise_update.default_sets
+
+    db.commit()
+
+    return {"message": "plan exercises updated", "updated_count": len(plan_exercises)}
 
 
 @router.get("/days/{plan_day_id}/exercises")

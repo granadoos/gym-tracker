@@ -169,6 +169,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  updatePlanDayExercisesDefaultSets: (planDayId: number, defaultSets: number) =>
+    request<{ message: string; updated_count: number }>(
+      `/plans/days/${planDayId}/exercises/bulk-default-sets`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ default_sets: defaultSets }),
+      }
+    ),
   deletePlanExercise: (planDayId: number, planExerciseId: number) =>
     request<{ message: string }>(
       `/plans/days/${planDayId}/exercises/${planExerciseId}`,

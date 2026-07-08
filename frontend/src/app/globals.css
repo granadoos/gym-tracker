@@ -824,6 +824,11 @@ select:focus {
   gap: 6px;
 }
 
+.workout-step-progress-secondary {
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
 .workout-step-progress button {
   height: 8px;
   border: 0;

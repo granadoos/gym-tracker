@@ -362,6 +362,29 @@ export default function WorkoutPage() {
   const activeExercise =
     activeStep?.type === "exercise" ? activeStep.exercise : null;
   const activeSet = activeStep?.type === "exercise" ? activeStep.set : null;
+  const currentRoundExerciseSteps = useMemo(() => {
+    if (
+      !workout ||
+      workout.workout_type !== "circuit" ||
+      activeStep?.type !== "exercise" ||
+      activeStep.roundIndex === null
+    ) {
+      return [];
+    }
+
+    return workoutSteps.filter(
+      (step): step is ExerciseWorkoutStep =>
+        step.type === "exercise" && step.roundIndex === activeStep.roundIndex
+    );
+  }, [activeStep, workout, workoutSteps]);
+  const currentRoundExerciseIndex =
+    activeStep?.type === "exercise" && activeStep.roundIndex !== null
+      ? currentRoundExerciseSteps.findIndex(
+          (step) =>
+            step.exerciseIndex === activeStep.exerciseIndex &&
+            step.roundIndex === activeStep.roundIndex
+        )
+      : -1;
   const activeRestTimer =
     activeStep?.type === "rest"
       ? restTimers[activeStepIndex] ?? {
@@ -844,6 +867,38 @@ export default function WorkoutPage() {
                 );
               })}
             </div>
+
+            {workout.workout_type === "circuit" &&
+            currentRoundExerciseSteps.length > 0 &&
+            activeStep?.type === "exercise" ? (
+              <div className="workout-step-progress workout-step-progress-secondary">
+                <div className="workout-step-summary">
+                  <span>
+                    Ejercicio {currentRoundExerciseIndex + 1} de {currentRoundExerciseSteps.length}
+                  </span>
+                </div>
+                <div className="workout-step-dots">
+                  {currentRoundExerciseSteps.map((step, index) => {
+                    const isActive =
+                      activeStep?.type === "exercise" &&
+                      step.exerciseIndex === activeStep.exerciseIndex &&
+                      step.roundIndex === activeStep.roundIndex;
+                    const isDone = step.set.completed;
+
+                    return (
+                      <button
+                        aria-label={`Ejercicio ${index + 1} de ${currentRoundExerciseSteps.length}`}
+                        className={`${isActive ? "active" : ""} ${
+                          isDone ? "done" : ""
+                        }`}
+                        key={`${step.roundIndex}-${step.exerciseIndex}`}
+                        type="button"
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </section>
 
           {activeExercise && activeStep?.type === "exercise" && activeSet && activeTimer ? (
