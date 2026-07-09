@@ -220,37 +220,15 @@ export default function HistoryDetailPage() {
           <p className="eyebrow">Gym Tracker</p>
           <h1>Detalle workout</h1>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button
-            className="icon-button"
-            type="button"
-            onClick={() => router.push("/history")}
-            aria-label="Volver al historico"
-            title="Volver"
-          >
-            ⬅
-          </button>
-          <button
-            className="icon-button danger"
-            onClick={async () => {
-              const ok = confirm(`Borrar workout #${workoutId}?`);
-              if (!ok) return;
-
-              try {
-                setError(null);
-                await api.deleteWorkout(workoutId);
-                router.push("/history");
-              } catch {
-                setError("No se pudo borrar el workout.");
-              }
-            }}
-            type="button"
-            aria-label={`Borrar workout ${workoutId}`}
-            title="Borrar"
-          >
-            x
-          </button>
-        </div>
+        <button
+          className="icon-button"
+          type="button"
+          onClick={() => router.push("/history")}
+          aria-label="Volver al historico"
+          title="Volver"
+        >
+          ⬅
+        </button>
       </header>
 
       {error ? <div className="error-banner">{error}</div> : null}
@@ -279,7 +257,7 @@ export default function HistoryDetailPage() {
               </div>
               <div className="history-status-editor">
                 <label className="history-status-label" htmlFor="workout-status-select">
-                  <span>Estado</span>
+                  <span>Acciones</span>
                   <select
                     id="workout-status-select"
                     value={statusDraft}
@@ -288,8 +266,8 @@ export default function HistoryDetailPage() {
                     }
                     disabled={saving}
                   >
-                    <option value="in_progress">In progress</option>
-                    <option value="completed">Completed</option>
+                    <option value="in_progress">En curso</option>
+                    <option value="completed">Completado</option>
                   </select>
                 </label>
                 <button
@@ -299,6 +277,25 @@ export default function HistoryDetailPage() {
                   disabled={saving || statusDraft === workout.status}
                 >
                   {saving ? "Guardando..." : "Cambiar estado"}
+                </button>
+                <button
+                  className="secondary-action"
+                  type="button"
+                  onClick={async () => {
+                    const ok = confirm(`Borrar workout #${workoutId}?`);
+                    if (!ok) return;
+
+                    try {
+                      setError(null);
+                      await api.deleteWorkout(workoutId);
+                      router.push("/history");
+                    } catch {
+                      setError("No se pudo borrar el workout.");
+                    }
+                  }}
+                  disabled={saving}
+                >
+                  Borrar
                 </button>
               </div>
             </div>

@@ -733,7 +733,7 @@ select:focus {
   margin-bottom: 0;
 }
 
-.history-summary > div {
+.history-summary > div:not(.history-status-editor) {
   display: grid;
   gap: 4px;
 }
@@ -777,7 +777,8 @@ select:focus {
 }
 
 .history-summary {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
@@ -850,27 +851,47 @@ select:focus {
 }
 
 .history-status-editor {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  align-items: end;
+  align-items: flex-start;
+  width: 100%;
 }
 
 .history-status-label {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 4px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
+  flex-shrink: 0;
+  width: 100%;
 }
 
 .history-status-label select {
   min-width: 140px;
+  max-width: 180px;
   height: 34px;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0 8px;
   background: #ffffff;
+}
+
+.history-status-editor .primary-action {
+  height: 34px;
+  min-height: unset;
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-left: 0;
+}
+
+.history-status-editor .secondary-action {
+  height: 34px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .history-set-row input[type="number"],
