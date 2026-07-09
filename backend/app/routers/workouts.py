@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
@@ -16,6 +17,11 @@ router = APIRouter(
     prefix="/workouts",
     tags=["Workouts"]
 )
+
+
+class WorkoutStatusUpdate(BaseModel):
+    status: str
+
 
 def get_db():
     db = SessionLocal()
@@ -262,6 +268,33 @@ def get_workout(
     return db.query(Workout).filter(
         Workout.id == workout_id
     ).first()
+
+
+@router.patch("/{workout_id}/status")
+def update_workout_status(
+    workout_id: int,
+    payload: WorkoutStatusUpdate,
+    db: Session = Depends(get_db)
+):
+    if payload.status not in {"in_progress", "completed"}:
+        raise HTTPException(status_code=400, detail="Invalid workout status")
+
+    workout = db.query(Workout).filter(
+        Workout.id == workout_id
+    ).first()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    workout.status = payload.status
+
+    db.commit()
+    db.refresh(workout)
+
+    return {
+        "message": "workout status updated",
+        "status": workout.status,
+    }
 
 
 @router.post("/{workout_id}/finish")

@@ -2,11 +2,33 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { WorkoutFull, api } from "@/lib/api";
+import DurationInput from "@/components/DurationInput";
+import { WorkoutFull, WorkoutSet, WorkoutStatus, api } from "@/lib/api";
 import { formatDurationInput } from "@/lib/formatter";
 
 function formatWorkoutDate(value: string) {
-  return new Date(value).toLocaleString();
+  const date = new Date(value);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+
+  return `${day}/${month}/${year}`;
+}
+
+function getStatusBadge(status: WorkoutStatus) {
+  if (status === "completed") {
+    return {
+      icon: "✓",
+      label: "Completado",
+      className: "status-badge status-badge-complete",
+    };
+  }
+
+  return {
+    icon: "●",
+    label: "En curso",
+    className: "status-badge status-badge-progress",
+  };
 }
 
 function formatSetValue(value: number | null, suffix = "") {
@@ -22,7 +44,15 @@ export default function HistoryDetailPage() {
   const [workout, setWorkout] = useState<WorkoutFull | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [tipo, setTipo] = useState<string>("-");
+  const [statusDraft, setStatusDraft] = useState<WorkoutStatus>("in_progress");
+
+  useEffect(() => {
+    if (workout) {
+      setStatusDraft(workout.status);
+    }
+  }, [workout]);
 
   useEffect(() => {
     let isActive = true;
@@ -111,6 +141,78 @@ export default function HistoryDetailPage() {
     };
   }, [workout]);
 
+  function updateWorkoutSet(setId: number, nextSet: WorkoutSet) {
+    setWorkout((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        exercises: current.exercises.map((exercise) => ({
+          ...exercise,
+          sets: exercise.sets.map((set) => (set.id === setId ? nextSet : set)),
+        })),
+      };
+    });
+  }
+
+  function patchWorkoutSetField(
+    setId: number,
+    field: "reps" | "weight" | "duration_seconds" | "completed",
+    value: number | null | boolean
+  ) {
+    setWorkout((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        exercises: current.exercises.map((exercise) => ({
+          ...exercise,
+          sets: exercise.sets.map((set) =>
+            set.id === setId ? ({ ...set, [field]: value } as WorkoutSet) : set
+          ),
+        })),
+      };
+    });
+  }
+
+  async function saveSetValue(
+    setId: number,
+    field: "reps" | "weight" | "duration_seconds" | "completed",
+    value: number | null | boolean
+  ) {
+    setSaving(true);
+    setError(null);
+
+    try {
+      const updated = await api.updateSet(setId, {
+        [field]: value,
+      });
+      updateWorkoutSet(setId, updated);
+    } catch {
+      setError("No se pudo actualizar la serie.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveWorkoutStatus() {
+    if (!workout) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const updated = await api.updateWorkoutStatus(workout.id, statusDraft);
+      setWorkout((current) =>
+        current ? { ...current, status: updated.status } : current
+      );
+    } catch {
+      setError("No se pudo actualizar el estado del workout.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <main className="history-shell">
       <header className="mobile-header">
@@ -161,17 +263,43 @@ export default function HistoryDetailPage() {
         ) : (
           <>
             <div className="mobile-card workout-summary history-summary">
-              <div>
-                <span>{workout.status}</span>
-                <strong>Workout #{workout.id}</strong>
+              <div className="history-summary-main">
+                <div className="history-summary-pill">
+                  <span>Fecha</span>
+                  <strong>{formatWorkoutDate(workout.date)}</strong>
+                </div>
+                <div className="history-summary-meta">
+                  <span>Plan</span>
+                  <strong>{tipo}</strong>
+                </div>
+                <div className={getStatusBadge(workout.status).className}>
+                  <span>{getStatusBadge(workout.status).icon}</span>
+                  <strong>{getStatusBadge(workout.status).label}</strong>
+                </div>
               </div>
-              <div>
-                <span>Fecha</span>
-                <strong>{formatWorkoutDate(workout.date)}</strong>
-              </div>
-              <div>
-                <span>Planes</span>
-                <strong>{tipo}</strong>
+              <div className="history-status-editor">
+                <label className="history-status-label" htmlFor="workout-status-select">
+                  <span>Estado</span>
+                  <select
+                    id="workout-status-select"
+                    value={statusDraft}
+                    onChange={(event) =>
+                      setStatusDraft(event.target.value as WorkoutStatus)
+                    }
+                    disabled={saving}
+                  >
+                    <option value="in_progress">In progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </label>
+                <button
+                  className="primary-action"
+                  type="button"
+                  onClick={() => void saveWorkoutStatus()}
+                  disabled={saving || statusDraft === workout.status}
+                >
+                  {saving ? "Guardando..." : "Cambiar estado"}
+                </button>
               </div>
             </div>
 
@@ -210,14 +338,72 @@ export default function HistoryDetailPage() {
                     {exercise.sets.map((set, index) => (
                       <div className="set-row history-set-row" key={set.id}>
                         <span>{index + 1}</span>
-                        <span>{formatSetValue(set.reps)}</span>
-                        <span>{formatSetValue(set.weight, " kg")}</span>
                         <span>
-                          {set.duration_seconds === null
-                            ? "-"
-                            : formatDurationInput(set.duration_seconds)}
+                          <input
+                            type="number"
+                            value={set.reps ?? ""}
+                            onChange={(event) => {
+                              const nextValue =
+                                event.target.value === ""
+                                  ? null
+                                  : Number(event.target.value);
+                              patchWorkoutSetField(set.id, "reps", nextValue);
+                            }}
+                            onBlur={(event) => {
+                              const nextValue =
+                                event.target.value === ""
+                                  ? null
+                                  : Number(event.target.value);
+                              void saveSetValue(set.id, "reps", nextValue);
+                            }}
+                            inputMode="numeric"
+                            placeholder="-"
+                          />
                         </span>
-                        <span>{set.completed ? "Si" : "No"}</span>
+                        <span>
+                          <input
+                            type="number"
+                            value={set.weight ?? ""}
+                            onChange={(event) => {
+                              const nextValue =
+                                event.target.value === ""
+                                  ? null
+                                  : Number(event.target.value);
+                              patchWorkoutSetField(set.id, "weight", nextValue);
+                            }}
+                            onBlur={(event) => {
+                              const nextValue =
+                                event.target.value === ""
+                                  ? null
+                                  : Number(event.target.value);
+                              void saveSetValue(set.id, "weight", nextValue);
+                            }}
+                            inputMode="decimal"
+                            placeholder="-"
+                          />
+                        </span>
+                        <span>
+                          <DurationInput
+                            value={set.duration_seconds}
+                            onChange={(nextValue) => {
+                              patchWorkoutSetField(set.id, "duration_seconds", nextValue);
+                            }}
+                            onBlur={(nextValue) => {
+                              void saveSetValue(set.id, "duration_seconds", nextValue);
+                            }}
+                          />
+                        </span>
+                        <span>
+                          <input
+                            type="checkbox"
+                            checked={set.completed}
+                            onChange={(event) => {
+                              const nextValue = event.target.checked;
+                              patchWorkoutSetField(set.id, "completed", nextValue);
+                              void saveSetValue(set.id, "completed", nextValue);
+                            }}
+                          />
+                        </span>
                       </div>
                     ))}
                   </div>

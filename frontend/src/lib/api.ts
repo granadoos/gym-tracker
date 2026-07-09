@@ -68,17 +68,19 @@ export type WorkoutExerciseFull = {
 
 export type WorkoutFull = {
   id: number;
-  status: "in_progress" | "completed";
+  status: WorkoutStatus;
   date: string;
   workout_type: "normal" | "circuit";
   circuit_rest_seconds: number | null;
   exercises: WorkoutExerciseFull[];
 };
 
+export type WorkoutStatus = "in_progress" | "completed";
+
 export type WorkoutSummary = {
   id: number;
   plan_day_id: number | null;
-  status: "in_progress" | "completed";
+  status: WorkoutStatus;
   date: string;
 };
 
@@ -203,6 +205,11 @@ export const api = {
   getWorkout: (workoutId: number) => request<WorkoutSummary>(`/workouts/${workoutId}`),
   getWorkoutFull: (workoutId: number) =>
     request<WorkoutFull>(`/workouts/${workoutId}/full`),
+  updateWorkoutStatus: (workoutId: number, status: WorkoutStatus) =>
+    request<{ message: string; status: WorkoutStatus }>(`/workouts/${workoutId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
   deleteWorkout: (workoutId: number) =>
     request<{ message: string }>(`/workouts/${workoutId}`, {
       method: "DELETE",

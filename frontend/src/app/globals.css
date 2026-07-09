@@ -776,6 +776,119 @@ select:focus {
   white-space: nowrap;
 }
 
+.history-summary {
+  display: grid;
+  gap: 10px;
+}
+
+.history-summary-main {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
+  gap: 8px;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.history-summary-pill,
+.history-summary-meta {
+  display: inline-grid;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px 10px;
+  white-space: normal;
+}
+
+.history-summary-pill span,
+.history-summary-meta span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.history-summary-pill strong,
+.history-summary-meta strong {
+  font-size: 14px;
+}
+
+.status-badge {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-items: center;
+  justify-content: start;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px 10px;
+}
+
+.status-badge span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.status-badge strong {
+  font-size: 14px;
+}
+
+.status-badge-complete {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.status-badge-progress {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.history-status-editor {
+  display: grid;
+  gap: 8px;
+  align-items: end;
+}
+
+.history-status-label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.history-status-label select {
+  min-width: 140px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: #ffffff;
+}
+
+.history-set-row input[type="number"],
+.history-set-row input[type="text"] {
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 8px;
+}
+
+.history-set-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  justify-self: center;
+}
+
 .empty-state {
   border: 1px dashed var(--line);
   border-radius: 8px;

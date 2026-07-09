@@ -5,7 +5,20 @@ import { useEffect, useState } from "react";
 import { WorkoutSummary, PlanDay, TrainingPlan, api } from "@/lib/api";
 
 function formatWorkoutDate(value: string) {
-  return new Date(value).toLocaleString();
+  const date = new Date(value);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+
+  return `${day}/${month}/${year}`;
+}
+
+function getStatusBadge(status: string) {
+  if (status === "completed") {
+    return { icon: "✅", label: "Completado" };
+  }
+
+  return { icon: "⏳", label: "En curso" };
 }
 
 export default function HistoryPage() {
@@ -84,11 +97,9 @@ export default function HistoryPage() {
           <table className="history-table">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Fecha</th>
                 <th>Planes</th>
-                <th>Estado</th>
-                <th>Detalle</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -104,12 +115,11 @@ export default function HistoryPage() {
 
                 return (
                   <tr key={workout.id} className="history-row">
-                    <td>{workout.id}</td>
                     <td>{formatWorkoutDate(workout.date)}</td>
                     <td>{tipo}</td>
-                    <td>{workout.status}</td>
                     <td>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        {getStatusBadge(workout.status).icon}
                         <Link href={`/history/${workout.id}`}>
                           <button type="button" className="icon-button" aria-label={`Ver detalle workout ${workout.id}`} title="Ver detalle">
                             👁
