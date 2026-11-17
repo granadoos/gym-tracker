@@ -10,6 +10,7 @@ from app.routers.plans import router as plans_router
 from app.routers.workouts import router as workouts_router
 from app.routers.sets import router as sets_router
 from app.routers.workout_exercises import router as workout_exercises_router
+from app.routers.walking import router as walking_router
 
 app = FastAPI()
 
@@ -26,6 +27,7 @@ app.include_router(plans_router, prefix="/api")
 app.include_router(workouts_router, prefix="/api")
 app.include_router(sets_router, prefix="/api")
 app.include_router(workout_exercises_router)
+app.include_router(walking_router, prefix="/api")
 
 
 def ensure_database_schema():

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { PlanDay, TrainingPlan, api } from "@/lib/api";
+import type { FormEvent } from "react";
+import { PlanDay, TrainingPlan, WalkingToday, api } from "@/lib/api";
 import { inspirationalPhrases } from "@/lib/inspirationalPhrases";
 
 const weekDays = [
@@ -15,6 +16,13 @@ const weekDays = [
   "Sabado",
   "Domingo",
 ];
+
+function localDateString() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
 
 
 function getDailyPhrase() {
@@ -35,6 +43,10 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [walking, setWalking] = useState<WalkingToday | null>(null);
+  const [kilometersInput, setKilometersInput] = useState("");
+  const [goalInput, setGoalInput] = useState("6");
+  const [walkingBusy, setWalkingBusy] = useState(false);
 
   const sortedPlanDays = useMemo(
     () =>
@@ -63,9 +75,10 @@ export default function Home() {
     async function loadHomeData() {
       try {
         setError(null);
-        const [planData, dayData] = await Promise.all([
+        const [planData, dayData, walkingData] = await Promise.all([
           api.getPlans(),
           api.getPlanDays(),
+          api.getWalkingToday(localDateString()),
         ]);
 
         if (!isActive) return;
@@ -73,6 +86,8 @@ export default function Home() {
         setPlans(planData);
         setPlanDays(dayData);
         setSelectedDayId(dayData[0]?.id ?? null);
+        setWalking(walkingData);
+        setGoalInput(String(walkingData.daily_goal_kilometers));
       } catch {
         if (isActive) {
           setError("No se pudo cargar la informacion.");
@@ -90,6 +105,64 @@ export default function Home() {
       isActive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!walking) return;
+    const timer = window.setInterval(() => {
+      if (localDateString() !== walking.day) {
+        void api.getWalkingToday(localDateString()).then(setWalking).catch(() => {
+          setError("No se pudo actualizar el contador diario.");
+        });
+      }
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [walking]);
+
+  async function handleAddKilometers(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const kilometers = Number(kilometersInput);
+    if (!walking || !Number.isFinite(kilometers) || kilometers <= 0) return;
+    setWalkingBusy(true);
+    setError(null);
+    const day = localDateString();
+    try {
+      await api.addWalkingEntry(kilometers, day);
+      setWalking(await api.getWalkingToday(day));
+      setKilometersInput("");
+    } catch {
+      setError("No se pudieron guardar los kilómetros.");
+    } finally {
+      setWalkingBusy(false);
+    }
+  }
+
+  async function handleSaveGoal(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const goal = Number(goalInput);
+    if (!Number.isFinite(goal) || goal <= 0) return;
+    setWalkingBusy(true);
+    setError(null);
+    try {
+      await api.updateWalkingGoal(goal);
+      setWalking(await api.getWalkingToday(localDateString()));
+    } catch {
+      setError("No se pudo actualizar la meta diaria.");
+    } finally {
+      setWalkingBusy(false);
+    }
+  }
+
+  async function handleDeleteWalkingEntry(entryId: number) {
+    setWalkingBusy(true);
+    try {
+      await api.deleteWalkingEntry(entryId);
+      setWalking(await api.getWalkingToday(localDateString()));
+    } catch {
+      setError("No se pudo borrar el registro.");
+    } finally {
+      setWalkingBusy(false);
+    }
+  }
 
   async function handleStartWorkout() {
     if (!selectedDayId) return;
@@ -117,6 +190,61 @@ export default function Home() {
       </header>
 
       {error ? <div className="error-banner">{error}</div> : null}
+
+      <section className="mobile-card walking-card">
+        <div className="panel-header">
+          <div>
+            <h2>Objetivo de hoy</h2>
+            <p>Registra tus paseos; el contador empieza de nuevo cada día.</p>
+          </div>
+        </div>
+        {walking ? (
+          <>
+            <div className="walking-total">
+              <strong>{walking.kilometers.toLocaleString("es-ES", { maximumFractionDigits: 2 })}</strong>
+              <span>de {walking.daily_goal_kilometers.toLocaleString("es-ES", { maximumFractionDigits: 2 })} km</span>
+            </div>
+            <div
+              className="walking-progress-track"
+              role="progressbar"
+              aria-label="Progreso de kilómetros de hoy"
+              aria-valuemin={0}
+              aria-valuemax={walking.daily_goal_kilometers}
+              aria-valuenow={Math.min(walking.kilometers, walking.daily_goal_kilometers)}
+            >
+              <span style={{ width: `${Math.min((walking.kilometers / walking.daily_goal_kilometers) * 100, 100)}%` }} />
+            </div>
+            <p className="walking-remaining">
+              {walking.kilometers >= walking.daily_goal_kilometers
+                ? "¡Meta diaria cumplida!"
+                : `Te faltan ${(walking.daily_goal_kilometers - walking.kilometers).toLocaleString("es-ES", { maximumFractionDigits: 2 })} km`}
+            </p>
+            <form className="walking-add-form" onSubmit={handleAddKilometers}>
+              <label htmlFor="walking-kilometers">Añadir kilómetros</label>
+              <div>
+                <input id="walking-kilometers" min="0.01" max="100" step="0.01" type="number" placeholder="Ej. 2,5" value={kilometersInput} onChange={(event) => setKilometersInput(event.target.value)} required />
+                <button className="primary-action" disabled={walkingBusy || !kilometersInput} type="submit">Añadir</button>
+              </div>
+            </form>
+            {walking.entries.length > 0 ? (
+              <ul className="walking-entry-list">
+                {walking.entries.map((entry) => (
+                  <li key={entry.id}>
+                    <span>{entry.kilometers.toLocaleString("es-ES", { maximumFractionDigits: 2 })} km</span>
+                    <button className="icon-button danger" disabled={walkingBusy} onClick={() => void handleDeleteWalkingEntry(entry.id)} type="button" aria-label={`Borrar ${entry.kilometers} kilómetros`}>×</button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <form className="walking-goal-form" onSubmit={handleSaveGoal}>
+              <label htmlFor="walking-goal">Meta diaria</label>
+              <input id="walking-goal" min="0.1" max="1000" step="0.1" type="number" value={goalInput} onChange={(event) => setGoalInput(event.target.value)} required />
+              <span>km</span>
+              <button className="secondary-action" disabled={walkingBusy || Number(goalInput) === walking.daily_goal_kilometers} type="submit">Guardar meta</button>
+            </form>
+          </>
+        ) : <div className="empty-state">Cargando contador...</div>}
+      </section>
 
       <section className="mobile-card">
         <div className="panel-header">

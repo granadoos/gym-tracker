@@ -117,6 +117,104 @@ select:focus {
   padding: 16px;
 }
 
+.walking-card {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.walking-card .panel-header {
+  margin-bottom: 0;
+}
+
+.walking-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.walking-total strong {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.walking-total span,
+.walking-remaining {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.walking-progress-track {
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5e9ed;
+}
+
+.walking-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1f7a5a, #48aa7e);
+  transition: width 220ms ease;
+}
+
+.walking-remaining {
+  margin: -4px 0 0;
+}
+
+.walking-add-form,
+.walking-goal-form {
+  display: grid;
+  gap: 7px;
+}
+
+.walking-add-form label,
+.walking-goal-form label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.walking-add-form > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.walking-goal-form {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.walking-goal-form label {
+  grid-column: 1 / -1;
+}
+
+.walking-goal-form input {
+  width: 100%;
+}
+
+.walking-entry-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.walking-entry-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .config-menu {
   display: grid;
   gap: 12px;

@@ -77,6 +77,14 @@ export type WorkoutFull = {
 
 export type WorkoutStatus = "in_progress" | "completed";
 
+export type WalkingEntry = { id: number; kilometers: number; day?: string };
+export type WalkingToday = {
+  day: string;
+  kilometers: number;
+  daily_goal_kilometers: number;
+  entries: WalkingEntry[];
+};
+
 export type WorkoutSummary = {
   id: number;
   plan_day_id: number | null;
@@ -114,6 +122,19 @@ export type UpdateSetInput = {
 };
 
 export const api = {
+  getWalkingToday: (day: string) => request<WalkingToday>(`/walking/today?day=${day}`),
+  addWalkingEntry: (kilometers: number, day: string) =>
+    request<WalkingEntry>("/walking/entries", {
+      method: "POST",
+      body: JSON.stringify({ kilometers, day }),
+    }),
+  deleteWalkingEntry: (entryId: number) =>
+    request<{ message: string }>(`/walking/entries/${entryId}`, { method: "DELETE" }),
+  updateWalkingGoal: (dailyGoalKilometers: number) =>
+    request<{ daily_goal_kilometers: number }>("/walking/goal", {
+      method: "PATCH",
+      body: JSON.stringify({ daily_goal_kilometers: dailyGoalKilometers }),
+    }),
   getExercises: () => request<Exercise[]>("/exercises"),
   createExercise: (input: CreateExerciseInput) =>
     request<Exercise>("/exercises", {
