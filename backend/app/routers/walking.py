@@ -51,6 +51,23 @@ def get_today(day: date = Query(default_factory=date.today), db: Session = Depen
     }
 
 
+@router.get("/history")
+def get_walking_history(db: Session = Depends(get_db)):
+    daily_totals = db.query(
+        WalkingEntry.day.label("day"),
+        func.sum(WalkingEntry.kilometers).label("kilometers"),
+    ).group_by(
+        WalkingEntry.day
+    ).order_by(
+        WalkingEntry.day.desc()
+    ).all()
+
+    return [
+        {"day": day.isoformat(), "kilometers": round(float(kilometers), 2)}
+        for day, kilometers in daily_totals
+    ]
+
+
 @router.post("/entries")
 def add_entry(payload: WalkingEntryCreate, db: Session = Depends(get_db)):
     entry = WalkingEntry(day=payload.day, kilometers=payload.kilometers)

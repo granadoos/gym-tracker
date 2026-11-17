@@ -84,6 +84,7 @@ export type WalkingToday = {
   daily_goal_kilometers: number;
   entries: WalkingEntry[];
 };
+export type WalkingHistoryDay = { day: string; kilometers: number };
 
 export type WorkoutSummary = {
   id: number;
@@ -123,6 +124,7 @@ export type UpdateSetInput = {
 
 export const api = {
   getWalkingToday: (day: string) => request<WalkingToday>(`/walking/today?day=${day}`),
+  getWalkingHistory: () => request<WalkingHistoryDay[]>("/walking/history"),
   addWalkingEntry: (kilometers: number, day: string) =>
     request<WalkingEntry>("/walking/entries", {
       method: "POST",

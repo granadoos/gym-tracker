@@ -270,6 +270,9 @@ export default function Home() {
               <span>km</span>
               <button className="secondary-action" disabled={walkingBusy || Number(goalInput) === walking.daily_goal_kilometers} type="submit">Guardar meta</button>
             </form>
+            <Link className="secondary-link-action walking-history-link" href="/walking-history">
+              Ver histórico
+            </Link>
           </>
         ) : <div className="empty-state">Cargando contador...</div>}
       </section> : null}

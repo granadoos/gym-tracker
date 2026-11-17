@@ -153,6 +153,12 @@ select:focus {
   margin-bottom: 0;
 }
 
+.walking-history-link {
+  width: 100%;
+  min-height: 44px;
+  background: var(--panel-soft);
+}
+
 .walking-total {
   display: flex;
   align-items: baseline;
