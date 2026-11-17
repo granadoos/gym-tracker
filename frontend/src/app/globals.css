@@ -117,6 +117,32 @@ select:focus {
   padding: 16px;
 }
 
+.home-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #e9edf0;
+  padding: 4px;
+}
+
+.home-tabs button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.home-tabs button.active {
+  background: #ffffff;
+  color: var(--accent-strong);
+  box-shadow: 0 1px 3px rgba(21, 23, 26, 0.12);
+}
+
 .walking-card {
   display: grid;
   gap: 12px;

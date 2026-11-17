@@ -44,6 +44,7 @@ export default function Home() {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [walking, setWalking] = useState<WalkingToday | null>(null);
+  const [activeTab, setActiveTab] = useState<"walking" | "training">("walking");
   const [kilometersInput, setKilometersInput] = useState("");
   const [goalInput, setGoalInput] = useState("6");
   const [walkingBusy, setWalkingBusy] = useState(false);
@@ -191,7 +192,34 @@ export default function Home() {
 
       {error ? <div className="error-banner">{error}</div> : null}
 
-      <section className="mobile-card walking-card">
+      <div className="home-tabs" role="tablist" aria-label="Secciones principales">
+        <button
+          aria-selected={activeTab === "training"}
+          className={activeTab === "training" ? "active" : ""}
+          id="training-tab"
+          onClick={() => setActiveTab("training")}
+          role="tab"
+          type="button"
+        >
+          Entrenamiento
+        </button>
+        <button
+          aria-selected={activeTab === "walking"}
+          className={activeTab === "walking" ? "active" : ""}
+          id="walking-tab"
+          onClick={() => setActiveTab("walking")}
+          role="tab"
+          type="button"
+        >
+          Km diarios
+        </button>
+      </div>
+
+      {activeTab === "walking" ? <section
+        aria-labelledby="walking-tab"
+        className="mobile-card walking-card"
+        role="tabpanel"
+      >
         <div className="panel-header">
           <div>
             <h2>Objetivo de hoy</h2>
@@ -244,9 +272,10 @@ export default function Home() {
             </form>
           </>
         ) : <div className="empty-state">Cargando contador...</div>}
-      </section>
+      </section> : null}
 
-      <section className="mobile-card">
+      {activeTab === "training" ? <>
+      <section aria-labelledby="training-tab" className="mobile-card" role="tabpanel">
         <div className="panel-header">
           <div>
             <h2>Elige el dia</h2>
@@ -299,6 +328,7 @@ export default function Home() {
           Historico
         </Link>
       </section>
+      </> : null}
     </main>
   );
 }
