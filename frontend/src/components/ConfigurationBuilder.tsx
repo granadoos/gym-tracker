@@ -371,7 +371,11 @@ export default function ConfigurationBuilder({
 
       await api.createPlanExercise(selectedDayId, {
         exercise_id: exerciseId,
-        order_index: planExercises.length + 1,
+        order_index:
+          planExercises.reduce(
+            (highest, item) => Math.max(highest, item.order_index),
+            0
+          ) + 1,
         default_sets: setsToUse,
         default_reps: defaultReps === "" ? null : defaultReps,
         default_weight: defaultWeight === "" ? null : defaultWeight,
@@ -401,6 +405,36 @@ export default function ConfigurationBuilder({
       );
     } catch {
       setError("No se pudo borrar el ejercicio del dia.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleMovePlanExercise(planExerciseId: number, direction: -1 | 1) {
+    if (!selectedDayId || saving) return;
+
+    const currentIndex = planExercises.findIndex((item) => item.id === planExerciseId);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= planExercises.length) return;
+
+    const reordered = [...planExercises];
+    [reordered[currentIndex], reordered[nextIndex]] = [
+      reordered[nextIndex],
+      reordered[currentIndex],
+    ];
+
+    setSaving(true);
+    setError(null);
+    try {
+      await api.reorderPlanExercises(
+        selectedDayId,
+        reordered.map((item) => item.id)
+      );
+      setPlanExercises(
+        reordered.map((item, index) => ({ ...item, order_index: index + 1 }))
+      );
+    } catch {
+      setError("No se pudo cambiar el orden de los ejercicios.");
     } finally {
       setSaving(false);
     }
@@ -801,9 +835,8 @@ export default function ConfigurationBuilder({
               <span>Objetivo</span>
               <span>Peso</span>
               <span>Acciones</span>
-              <span></span>
             </div>
-            {planExercises.map((item) => (
+            {planExercises.map((item, index) => (
               <div className="table-row" key={item.id}>
                 <span>{item.order_index}</span>
                 <strong>{item.exercise_name}</strong>
@@ -818,24 +851,46 @@ export default function ConfigurationBuilder({
                     ? `${item.default_weight} kg`
                     : "-"}
                 </span>
-                <button
-                  type="button"
-                  className="icon-button"
-                  disabled={saving}
-                  onClick={() => handleTouchPlanExercise(item.id)}
-                  title="Marcar este ejercicio como inicio del siguiente workout"
-                >
-                  ↻
-                </button>
-                <button
-                  aria-label={`Borrar ${item.exercise_name}`}
-                  className="icon-button danger"
-                  disabled={saving}
-                  onClick={() => handleDeletePlanExercise(item.id)}
-                  type="button"
-                >
-                  x
-                </button>
+                <div className="exercise-row-actions">
+                  <button
+                    aria-label={`Subir ${item.exercise_name}`}
+                    className="icon-button"
+                    disabled={saving || index === 0}
+                    onClick={() => void handleMovePlanExercise(item.id, -1)}
+                    title="Subir ejercicio"
+                    type="button"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    aria-label={`Bajar ${item.exercise_name}`}
+                    className="icon-button"
+                    disabled={saving || index === planExercises.length - 1}
+                    onClick={() => void handleMovePlanExercise(item.id, 1)}
+                    title="Bajar ejercicio"
+                    type="button"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    disabled={saving}
+                    onClick={() => handleTouchPlanExercise(item.id)}
+                    title="Marcar este ejercicio como inicio del siguiente workout"
+                  >
+                    ↻
+                  </button>
+                  <button
+                    aria-label={`Borrar ${item.exercise_name}`}
+                    className="icon-button danger"
+                    disabled={saving}
+                    onClick={() => handleDeletePlanExercise(item.id)}
+                    type="button"
+                  >
+                    x
+                  </button>
+                </div>
               </div>
             ))}
           </div>

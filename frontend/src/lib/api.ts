@@ -199,6 +199,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  reorderPlanExercises: (planDayId: number, exerciseIds: number[]) =>
+    request<{ message: string }>(`/plans/days/${planDayId}/exercises/order`, {
+      method: "PATCH",
+      body: JSON.stringify({ exercise_ids: exerciseIds }),
+    }),
   updatePlanDayExercisesDefaultSets: (planDayId: number, defaultSets: number) =>
     request<{ message: string; updated_count: number }>(
       `/plans/days/${planDayId}/exercises/bulk-default-sets`,

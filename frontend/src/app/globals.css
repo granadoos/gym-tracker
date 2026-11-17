@@ -719,18 +719,19 @@ select:focus {
 .exercise-table {
   border: 1px solid var(--line);
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .table-row {
   display: grid;
-  grid-template-columns: 70px minmax(140px, 1fr) 80px 80px 90px 36px 36px;
+  grid-template-columns: 58px minmax(150px, 1fr) 65px 90px 75px 160px;
   gap: 12px;
   align-items: center;
   min-height: 44px;
   border-top: 1px solid var(--line);
   padding: 0 12px;
   font-size: 14px;
+  min-width: 620px;
 }
 
 .table-row:first-child {
@@ -752,6 +753,22 @@ select:focus {
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.table-head > span:last-child {
+  grid-column: 6;
+}
+
+.exercise-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.exercise-row-actions .icon-button {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
 }
 
 .catalog-form {
@@ -1558,9 +1575,16 @@ select:focus {
   }
 
   .table-row {
-    grid-template-columns: 42px minmax(86px, 1fr) 54px 76px 64px 36px;
+    grid-template-columns: 42px minmax(110px, 1fr) 52px 78px 64px 148px;
     gap: 8px;
+    min-width: 540px;
     padding: 0 10px;
+  }
+
+  .exercise-row-actions .icon-button {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
   }
 
   .set-row {

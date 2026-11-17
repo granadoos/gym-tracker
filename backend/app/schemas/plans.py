@@ -37,3 +37,7 @@ class PlanExerciseUpdate(BaseModel):
 
 class PlanExerciseBatchDefaultSetsUpdate(BaseModel):
     default_sets: int
+
+
+class PlanExerciseOrderUpdate(BaseModel):
+    exercise_ids: list[int]

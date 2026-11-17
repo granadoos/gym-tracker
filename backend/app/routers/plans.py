@@ -12,6 +12,7 @@ from app.schemas.plans import (
     PlanDayWorkoutTypeUpdate,
     PlanExerciseBatchDefaultSetsUpdate,
     PlanExerciseCreate,
+    PlanExerciseOrderUpdate,
     PlanExerciseUpdate,
 )
 
@@ -334,6 +335,28 @@ def get_plan_day_exercises(
             training_plan_name
         ) in rows
     ]
+
+
+@router.patch("/days/{plan_day_id}/exercises/order")
+def reorder_plan_day_exercises(
+    plan_day_id: int,
+    order_update: PlanExerciseOrderUpdate,
+    db: Session = Depends(get_db)
+):
+    plan_exercises = db.query(PlanExercise).filter(
+        PlanExercise.plan_day_id == plan_day_id
+    ).all()
+    current_ids = {exercise.id for exercise in plan_exercises}
+
+    if len(order_update.exercise_ids) != len(current_ids) or set(order_update.exercise_ids) != current_ids:
+        raise HTTPException(status_code=400, detail="Order must include every exercise in this day exactly once")
+
+    exercises_by_id = {exercise.id: exercise for exercise in plan_exercises}
+    for order_index, exercise_id in enumerate(order_update.exercise_ids, start=1):
+        exercises_by_id[exercise_id].order_index = order_index
+
+    db.commit()
+    return {"message": "Plan exercises reordered"}
 
 
 @router.delete("/days/{plan_day_id}/exercises/{plan_exercise_id}")
