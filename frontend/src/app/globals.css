@@ -513,6 +513,24 @@ select:focus {
   font-weight: 700;
 }
 
+.plan-rename-form {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.plan-rename-form label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.plan-rename-form > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
 .compact-form button:hover,
 .form-grid button:hover,
 .builder-form button:hover,

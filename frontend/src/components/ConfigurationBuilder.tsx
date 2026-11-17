@@ -43,6 +43,7 @@ export default function ConfigurationBuilder({
   const [exerciseName, setExerciseName] = useState("");
   const [muscleGroup, setMuscleGroup] = useState("");
   const [planName, setPlanName] = useState("");
+  const [editedPlanName, setEditedPlanName] = useState("");
   const [exerciseId, setExerciseId] = useState<number | null>(null);
   const [defaultSets, setDefaultSets] = useState(3);
   const [circuitDefaultSets, setCircuitDefaultSets] = useState(3);
@@ -52,6 +53,10 @@ export default function ConfigurationBuilder({
 
   const selectedDay = planDays.find((day) => day.id === selectedDayId);
   const selectedPlan = plans.find((plan) => plan.id === selectedDay?.plan_id);
+
+  useEffect(() => {
+    setEditedPlanName(plans.find((plan) => plan.id === selectedPlanId)?.name ?? "");
+  }, [plans, selectedPlanId]);
 
   const sortedPlanDays = useMemo(
     () =>
@@ -214,6 +219,26 @@ export default function ConfigurationBuilder({
       setPlanName("");
     } catch {
       setError("No se pudo crear el plan.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleUpdatePlanName(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedPlanId || !editedPlanName.trim()) return;
+
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await api.updatePlan(selectedPlanId, {
+        name: editedPlanName.trim(),
+      });
+      setPlans((current) =>
+        current.map((plan) => (plan.id === updated.id ? updated : plan))
+      );
+    } catch {
+      setError("No se pudo cambiar el nombre del plan.");
     } finally {
       setSaving(false);
     }
@@ -490,6 +515,33 @@ export default function ConfigurationBuilder({
                 Borrar plan
               </button>
             </div>
+
+            {selectedPlanId ? (
+              <form className="plan-rename-form" onSubmit={handleUpdatePlanName}>
+                <label htmlFor="plan-rename">Nombre del plan seleccionado</label>
+                <div>
+                  <input
+                    id="plan-rename"
+                    maxLength={100}
+                    value={editedPlanName}
+                    onChange={(event) => setEditedPlanName(event.target.value)}
+                    required
+                  />
+                  <button
+                    className="secondary-action"
+                    disabled={
+                      saving ||
+                      !editedPlanName.trim() ||
+                      editedPlanName.trim() ===
+                        plans.find((plan) => plan.id === selectedPlanId)?.name
+                    }
+                    type="submit"
+                  >
+                    Guardar nombre
+                  </button>
+                </div>
+              </form>
+            ) : null}
           </section>
 
           <section className="mobile-card">

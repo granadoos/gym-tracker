@@ -48,6 +48,27 @@ def get_plans(db: Session = Depends(get_db)):
     return db.query(TrainingPlan).all()
 
 
+@router.patch("/{plan_id}")
+def update_plan(
+    plan_id: int,
+    plan_data: PlanCreate,
+    db: Session = Depends(get_db)
+):
+    plan = db.query(TrainingPlan).filter(TrainingPlan.id == plan_id).first()
+
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    name = plan_data.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Plan name cannot be empty")
+
+    plan.name = name
+    db.commit()
+    db.refresh(plan)
+    return plan
+
+
 @router.get("/days")
 def get_plan_day(db: Session = Depends(get_db)):
     existing_days = db.query(PlanDay).all()

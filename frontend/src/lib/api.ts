@@ -152,6 +152,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  updatePlan: (planId: number, input: CreatePlanInput) =>
+    request<TrainingPlan>(`/plans/${planId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }),
   deletePlan: (planId: number) =>
     request<{ message: string }>(`/plans/${planId}`, {
       method: "DELETE",
